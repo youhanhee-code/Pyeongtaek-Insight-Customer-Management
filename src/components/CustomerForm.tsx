@@ -752,10 +752,10 @@ export default function CustomerForm({ onSave, existingCustomers, groups, status
                   <select
                     value={managerName}
                     onChange={(e) => setManagerName(e.target.value)}
-                    disabled={currentUser && currentUser.role !== 'admin'}
+                    disabled={currentUser && currentUser.role !== 'admin' && !currentUser.sharesWithAdmin}
                     className="w-full bg-slate-50 border border-slate-200 focus:border-slate-900 focus:bg-white rounded-xl px-3 py-2 text-sm text-slate-800 outline-none disabled:opacity-75 disabled:cursor-not-allowed"
                   >
-                    {currentUser && currentUser.role !== 'admin' ? (
+                    {currentUser && currentUser.role !== 'admin' && !currentUser.sharesWithAdmin ? (
                       <option value={currentUser.name}>{currentUser.name}</option>
                     ) : (
                       availableManagers.map((m) => (

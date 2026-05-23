@@ -30,7 +30,8 @@ import {
   LogOut,
   ShieldAlert,
   ShieldCheck,
-  Lock
+  Lock,
+  Handshake
 } from 'lucide-react';
 
 export default function App() {
@@ -77,6 +78,24 @@ export default function App() {
     const updated = customers.filter((c) => c.id !== id);
     setCustomers(updated);
     saveCustomers(updated);
+  };
+
+  const handleClearAllCustomers = () => {
+    setCustomers([]);
+    saveCustomers([]);
+  };
+
+  const handleToggleCustomerShare = (id: string) => {
+    setCustomers((prev) => {
+      const updated = prev.map((c) => {
+        if (c.id === id) {
+          return { ...c, isShared: !c.isShared };
+        }
+        return c;
+      });
+      saveCustomers(updated);
+      return updated;
+    });
   };
 
   const handleUpdateStatus = (id: string, newStatus: string) => {
@@ -199,10 +218,10 @@ export default function App() {
     return <LoginScreen onLoginSuccess={setCurrentUser} />;
   }
 
-  // Filter visible customers based on role
+  // Filter visible customers based on role and real-time sharing preferences (row-level sharing)
   const visibleCustomers = currentUser.role === 'admin'
     ? customers
-    : customers.filter(c => c.managerName === currentUser.name);
+    : customers.filter(c => c.managerName === currentUser.name || c.isShared === true);
 
   return (
     <div className="geometric-grid text-slate-800 min-h-screen font-sans">
@@ -231,10 +250,18 @@ export default function App() {
                   <span className="text-blue-700">대표 관리자 권한</span>
                 </>
               ) : (
-                <>
-                  <UserCheck className="w-4 h-4 text-emerald-600" />
-                  <span className="text-emerald-700">{currentUser.name}</span>
-                </>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1">
+                    <UserCheck className="w-4 h-4 text-emerald-600" />
+                    <span className="text-emerald-700">{currentUser.name}</span>
+                  </div>
+                  {currentUser.sharesWithAdmin && (
+                    <span className="bg-blue-100 text-blue-700 border border-blue-200 text-[10px] font-extrabold px-2 py-0.5 rounded-lg flex items-center gap-1 leading-none shadow-2xs">
+                      <Handshake className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
+                      유한희 대표와 동시 공유 중
+                    </span>
+                  )}
+                </div>
               )}
             </div>
             <div className="h-4 w-px bg-slate-200"></div>
@@ -281,7 +308,7 @@ export default function App() {
           <div className="py-12 px-4 sm:px-6 max-w-7xl mx-auto space-y-8">
             
             {/* Active Analytics counters header */}
-            <CRMDashboard customers={visibleCustomers} onExport={handleExportCSV} />
+            <CRMDashboard customers={visibleCustomers} onExport={handleExportCSV} onClearAll={handleClearAllCustomers} />
 
             {/* Split view: Register customer form on left/right, customer list with search on other */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
@@ -337,6 +364,8 @@ export default function App() {
                 onUpdateStatus={handleUpdateStatus}
                 onAddNote={handleAddNote}
                 onAddFile={handleAddFile}
+                currentUser={currentUser}
+                onToggleCustomerShare={handleToggleCustomerShare}
               />
             </div>
 

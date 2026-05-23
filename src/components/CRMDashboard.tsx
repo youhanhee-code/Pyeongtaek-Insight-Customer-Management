@@ -1,12 +1,15 @@
+import { useState } from 'react';
 import { Customer } from '../types';
-import { Users, FileCheck, RefreshCw, Layers, TrendingUp, Download } from 'lucide-react';
+import { Users, FileCheck, RefreshCw, Layers, TrendingUp, Download, Trash2, AlertTriangle, X } from 'lucide-react';
 
 interface CRMDashboardProps {
   customers: Customer[];
   onExport: () => void;
+  onClearAll: () => void;
 }
 
-export default function CRMDashboard({ customers, onExport }: CRMDashboardProps) {
+export default function CRMDashboard({ customers, onExport, onClearAll }: CRMDashboardProps) {
+  const [isConfirmingClear, setIsConfirmingClear] = useState(false);
   const total = customers.length;
   
   const statusStats = customers.reduce((acc, curr) => {
@@ -97,7 +100,7 @@ export default function CRMDashboard({ customers, onExport }: CRMDashboardProps)
       </div>
 
       {/* Database Actions & Type Metrics Section */}
-      <div className="bg-[#0F172A] text-white rounded-3xl p-6 md:p-8 shadow-xl flex flex-col md:flex-row justify-between items-stretch gap-6">
+      <div className="bg-[#0F172A] text-white rounded-3xl p-6 md:p-8 shadow-xl flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-6">
         <div className="flex-1">
           <div className="inline-flex items-center gap-2 bg-blue-500/20 text-blue-300 px-3 py-1 rounded-full text-xs font-semibold mb-4">
             <TrendingUp className="w-3.5 h-3.5" /> 실시간 통합 부동산 DB 현황
@@ -107,15 +110,75 @@ export default function CRMDashboard({ customers, onExport }: CRMDashboardProps)
             고객의 요구를 분석하고 거래 형태에 적합한 매칭 매물을 선별하십시오. 아래 검색 기능과 필터를 조합하여 원하시는 타겟 목록을 신속히 확인하고, 백업 목적의 전체 데이터 내보내기(CSV)가 가능합니다.
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row justify-end items-center gap-4 min-w-[200px]">
+        <div className="flex flex-col sm:flex-row justify-end items-center gap-3 shrink-0">
           <button
             onClick={onExport}
-            className="w-full sm:w-auto bg-white/10 hover:bg-white/20 border border-white/20 text-white transition-all px-5 py-3.5 rounded-2xl font-semibold flex items-center justify-center gap-2"
+            className="w-full sm:w-auto bg-white/10 hover:bg-white/20 border border-white/20 text-white transition-all px-5 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 cursor-pointer text-sm"
           >
             <Download className="w-4 h-4" /> CRM 고객 DB 백업 (CSV)
           </button>
+          <button
+            type="button"
+            onClick={() => setIsConfirmingClear(true)}
+            className="w-full sm:w-auto bg-rose-600 hover:bg-rose-700 text-white transition-all px-5 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 cursor-pointer text-sm shadow-md"
+          >
+            <Trash2 className="w-4 h-4" /> 전체 데이터 일괄 삭제
+          </button>
         </div>
       </div>
+
+      {/* Warning Batch Delete Confirmation Modal */}
+      {isConfirmingClear && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in">
+          <div 
+            className="bg-white rounded-3xl border border-slate-200 p-6 md:p-8 max-w-md w-full shadow-2xl space-y-6 relative animate-scale-up"
+            style={{ animation: 'scaleUp 0.15s ease-out' }}
+          >
+            <button
+              type="button"
+              onClick={() => setIsConfirmingClear(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition p-1.5 rounded-xl hover:bg-slate-100 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-rose-50 border-4 border-rose-100 flex items-center justify-center text-rose-600">
+                <AlertTriangle className="w-8 h-8 animate-bounce" />
+              </div>
+              <div className="space-y-2">
+                <h4 className="text-xl font-extrabold text-[#0F172A]">⚠️ 전체 데이터 일괄 삭제</h4>
+                <p className="text-xs text-rose-600 font-bold bg-rose-50 border border-rose-100 py-1.5 px-3 rounded-lg">
+                  ❌ 경고: 저장된 모든 데이터가 영구히 지워집니다!
+                </p>
+              </div>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                정말로 전체 고객 정보를 일괄 삭제하시겠습니까? 이 동작은 되돌릴 수 없으며, 등록된 모든 거래 의뢰고객 목록, 상담 상세 메모, 첨부파일 내역이 로컬 및 실시간 기기 데이터베이스(Local Database)에서 흔적 없이 완전히 제거됩니다.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setIsConfirmingClear(false)}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold py-3.5 rounded-2xl text-xs transition border cursor-pointer"
+              >
+                취소 (보존하기)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onClearAll();
+                  setIsConfirmingClear(false);
+                }}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-extrabold py-3.5 rounded-2xl text-xs transition shadow-md flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4" /> 예, 전체 삭제합니다
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Customer Type Distribution Charts Card */}
       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm mt-6">

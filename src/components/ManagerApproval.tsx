@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ManagerUser } from '../types';
-import { getManagers, updateApprovalStatus, deleteManager } from '../utils/auth';
-import { Users, CheckCircle, XCircle, Trash2, Shield, UserX, UserCheck } from 'lucide-react';
+import { getManagers, updateApprovalStatus, deleteManager, updateSharingStatus } from '../utils/auth';
+import { Users, CheckCircle, XCircle, Trash2, Shield, UserX, UserCheck, Handshake } from 'lucide-react';
 
 interface ManagerApprovalProps {
   onManagersChanged?: () => void;
@@ -16,6 +16,12 @@ export default function ManagerApproval({ onManagersChanged }: ManagerApprovalPr
 
   const handleToggleApproval = (id: string, currentStatus: boolean) => {
     const updated = updateApprovalStatus(id, !currentStatus);
+    setManagers(updated);
+    if (onManagersChanged) onManagersChanged();
+  };
+
+  const handleToggleSharing = (id: string, currentSharingStatus: boolean) => {
+    const updated = updateSharingStatus(id, !currentSharingStatus);
     setManagers(updated);
     if (onManagersChanged) onManagersChanged();
   };
@@ -77,19 +83,42 @@ export default function ManagerApproval({ onManagersChanged }: ManagerApprovalPr
                   </span>
                 )}
               </div>
-              <div className="text-[11px] text-slate-500 font-mono space-x-3">
+              <div className="text-[11px] text-slate-500 font-mono space-x-3 flex flex-wrap items-center gap-y-1">
                 <span>ID: <strong className="text-slate-800">{m.username}</strong></span>
                 <span>•</span>
                 <span>연락처: <strong className="text-slate-800">{m.phone}</strong></span>
                 <span>•</span>
                 <span>가입일: {new Date(m.createdAt).toLocaleDateString()}</span>
+                {m.sharesWithAdmin && (
+                  <>
+                    <span>•</span>
+                    <span className="inline-flex items-center gap-1 text-blue-600 font-extrabold bg-blue-50 px-1.5 py-0.5 rounded-md">
+                      <Handshake className="w-3.5 h-3.5 text-blue-500" /> 유한희 중개사와 실시간 동시 공유 중
+                    </span>
+                  </>
+                )}
               </div>
             </div>
 
             {/* Action buttons */}
-            <div className="flex items-center gap-2 self-end sm:self-center">
+            <div className="flex flex-wrap items-center gap-2 self-end sm:self-center">
               {m.role !== 'admin' && (
                 <>
+                  {m.isApproved && (
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSharing(m.id, !!m.sharesWithAdmin)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                        m.sharesWithAdmin
+                          ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                      }`}
+                      title="대표(유한희 중개사)와 실시간 동시 데이터 공유 설정 토글"
+                    >
+                      <Handshake className={`w-4 h-4 ${m.sharesWithAdmin ? 'text-blue-600 animate-pulse' : 'text-slate-400'}`} />
+                      {m.sharesWithAdmin ? '동시 공유 ON' : '동시 공유 OFF'}
+                    </button>
+                  )}
                   <button
                     onClick={() => handleToggleApproval(m.id, m.isApproved)}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Customer, CustomerNote } from '../types';
-import { Search, Phone, User, Calendar, Folder, Plus, Trash2, ChevronDown, ChevronUp, FileText, CheckCircle2, UserCheck, PlusCircle } from 'lucide-react';
+import { Customer, CustomerNote, ManagerUser } from '../types';
+import { Search, Phone, User, Calendar, Folder, Plus, Trash2, ChevronDown, ChevronUp, FileText, CheckCircle2, UserCheck, PlusCircle, Handshake } from 'lucide-react';
 
 interface CustomerListProps {
   customers: Customer[];
@@ -10,6 +10,8 @@ interface CustomerListProps {
   onUpdateStatus: (id: string, newStatus: string) => void;
   onAddNote: (id: string, content: string) => void;
   onAddFile: (id: string, fileName: string) => void;
+  currentUser: ManagerUser;
+  onToggleCustomerShare: (id: string) => void;
 }
 
 const CUSTOMER_TYPES = ['전체', '매수인', '임차인', '매도인', '임대인', '관리인', '대리인', '중개사', '기타'];
@@ -21,7 +23,9 @@ export default function CustomerList({
   onDelete,
   onUpdateStatus,
   onAddNote,
-  onAddFile
+  onAddFile,
+  currentUser,
+  onToggleCustomerShare
 }: CustomerListProps) {
   // Filters State
   const [searchTerm, setSearchTerm] = useState('');
@@ -203,6 +207,33 @@ export default function CustomerList({
                         <span className="bg-blue-50 text-blue-800 border-blue-100 border text-[10px] font-bold px-2 py-0.5 rounded">
                           {customer.group}
                         </span>
+                        
+                        {/* Simultaneous sharing switch (Admin Toggleable, Manager Read-only) */}
+                        {currentUser.role === 'admin' ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onToggleCustomerShare(customer.id);
+                            }}
+                            className={`inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-lg border transition duration-150 cursor-pointer active:scale-95 ${
+                              customer.isShared
+                                ? 'bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200'
+                                : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                            }`}
+                            title="대표 관리자 전용: 이 특정 고객 데이터를 전 공인중개사와 실시간 동시 공유 지정"
+                          >
+                            <Handshake className={`w-3.5 h-3.5 ${customer.isShared ? 'text-blue-600 animate-pulse' : 'text-slate-400'}`} />
+                            <span>동시 공유 {customer.isShared ? 'ON' : 'OFF'}</span>
+                          </button>
+                        ) : (
+                          customer.isShared && (
+                            <span className="bg-blue-50 text-blue-800 border-blue-100 border text-[10px] font-extrabold px-2 py-0.5 rounded-lg flex items-center gap-1 shadow-2xs">
+                              <Handshake className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
+                              동시 공유중
+                            </span>
+                          )
+                        )}
                       </div>
 
                       {/* Phone & Date Info Row */}

@@ -22,6 +22,7 @@ const DEFAULT_MANAGERS: ManagerUser[] = [
     phone: '010-3333-4444',
     isApproved: true,
     role: 'manager',
+    sharesWithAdmin: false,
     createdAt: '2026-05-16T12:00:00Z'
   },
   {
@@ -32,6 +33,7 @@ const DEFAULT_MANAGERS: ManagerUser[] = [
     phone: '010-5555-6666',
     isApproved: true,
     role: 'manager',
+    sharesWithAdmin: true, // 유한희 중개사와 기본 동시 공유
     createdAt: '2026-05-17T15:00:00Z'
   }
 ];
@@ -97,6 +99,18 @@ export const updateApprovalStatus = (managerId: string, approved: boolean): Mana
   const updated = managers.map((m) => {
     if (m.id === managerId) {
       return { ...m, isApproved: approved };
+    }
+    return m;
+  });
+  saveManagers(updated);
+  return updated;
+};
+
+export const updateSharingStatus = (managerId: string, shares: boolean): ManagerUser[] => {
+  const managers = getManagers();
+  const updated = managers.map((m) => {
+    if (m.id === managerId) {
+      return { ...m, sharesWithAdmin: shares };
     }
     return m;
   });
