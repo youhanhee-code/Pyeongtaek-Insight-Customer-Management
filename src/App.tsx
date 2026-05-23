@@ -1,5 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react';
-import { Customer, CustomerNote } from './types';
+import { Customer, CustomerNote, ManagerUser } from './types';
 import {
   getCustomers,
   saveCustomers,
@@ -8,10 +8,13 @@ import {
   getStatuses,
   saveStatuses
 } from './utils/storage';
+import { getCurrentUser, logoutUser } from './utils/auth';
 import CRMDashboard from './components/CRMDashboard';
 import CustomerForm from './components/CustomerForm';
 import CustomerList from './components/CustomerList';
 import SettingsManager from './components/SettingsManager';
+import LoginScreen from './components/LoginScreen';
+import ManagerApproval from './components/ManagerApproval';
 
 import {
   LayoutDashboard,
@@ -23,10 +26,18 @@ import {
   Building,
   CheckCircle,
   FolderOpen,
-  Info
+  Info,
+  LogOut,
+  ShieldAlert,
+  ShieldCheck,
+  Lock
 } from 'lucide-react';
 
 export default function App() {
+  // Authentication State
+  const [currentUser, setCurrentUser] = useState<ManagerUser | null>(null);
+  const [managersRevision, setManagersRevision] = useState(0);
+
   // Live CRM Database State
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [groups, setGroups] = useState<string[]>([]);
@@ -40,7 +51,13 @@ export default function App() {
     setCustomers(getCustomers());
     setGroups(getGroups());
     setStatuses(getStatuses());
-  }, []);
+    setCurrentUser(getCurrentUser());
+  }, [managersRevision]);
+
+  const handleLogout = () => {
+    logoutUser();
+    setCurrentUser(null);
+  };
 
   // Save updates to storage and synchronize state
   const handleSaveCustomer = (newCustomer: Customer) => {
@@ -171,6 +188,15 @@ export default function App() {
     }, 4000);
   };
 
+  if (!currentUser) {
+    return <LoginScreen onLoginSuccess={setCurrentUser} />;
+  }
+
+  // Filter visible customers based on role
+  const visibleCustomers = currentUser.role === 'admin'
+    ? customers
+    : customers.filter(c => c.managerName === currentUser.name);
+
   return (
     <div className="geometric-grid text-slate-800 min-h-screen font-sans">
       
@@ -187,6 +213,31 @@ export default function App() {
               <h1 className="text-base font-extrabold tracking-tight text-slate-950">공인중개사 전문 CRM</h1>
               <span className="text-[10px] text-blue-600 font-bold uppercase tracking-wider block">REAL CRM PLATFORM</span>
             </div>
+          </div>
+
+          {/* Active User Session Info & Logout */}
+          <div className="flex flex-wrap items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-1.5 px-3">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+              {currentUser.role === 'admin' ? (
+                <>
+                  <ShieldCheck className="w-4 h-4 text-blue-600 animate-pulse" />
+                  <span className="text-blue-700">대표 관리자 권한</span>
+                </>
+              ) : (
+                <>
+                  <UserCheck className="w-4 h-4 text-emerald-600" />
+                  <span className="text-emerald-700">{currentUser.name}</span>
+                </>
+              )}
+            </div>
+            <div className="h-4 w-px bg-slate-200"></div>
+            <button
+              onClick={handleLogout}
+              className="text-[11px] font-bold text-slate-500 hover:text-rose-600 transition flex items-center gap-1.5 uppercase"
+              title="로그아웃"
+            >
+              <LogOut className="w-3.5 h-3.5" /> 로그아웃
+            </button>
           </div>
 
           {/* Mode Tabs Selector */}
@@ -223,7 +274,7 @@ export default function App() {
           <div className="py-12 px-4 sm:px-6 max-w-7xl mx-auto space-y-8">
             
             {/* Active Analytics counters header */}
-            <CRMDashboard customers={customers} onExport={handleExportCSV} />
+            <CRMDashboard customers={visibleCustomers} onExport={handleExportCSV} />
 
             {/* Split view: Register customer form on left/right, customer list with search on other */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
@@ -235,11 +286,16 @@ export default function App() {
                   existingCustomers={customers}
                   groups={groups}
                   statuses={statuses}
+                  currentUser={currentUser}
                 />
               </div>
 
-              {/* Right Column: Settings control desk */}
+              {/* Right Column: Settings control desk & Manager Approvals queue */}
               <div className="space-y-8">
+                {currentUser?.role === 'admin' && (
+                  <ManagerApproval onManagersChanged={() => setManagersRevision(prev => prev + 1)} />
+                )}
+
                 <SettingsManager
                   groups={groups}
                   statuses={statuses}
@@ -267,7 +323,7 @@ export default function App() {
                 <h3 className="text-xl font-bold text-slate-900">🗃️ 전체 고객 데이터베이스 조회</h3>
               </div>
               <CustomerList
-                customers={customers}
+                customers={visibleCustomers}
                 groups={groups}
                 statuses={statuses}
                 onDelete={handleDeleteCustomer}

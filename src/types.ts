@@ -30,3 +30,15 @@ export interface CRMStats {
   contracted: number;
   onHold: number;
 }
+
+export interface ManagerUser {
+  id: string;
+  username: string;
+  password?: string; // stored for login verification in localStorage
+  name: string;
+  phone: string;
+  isApproved: boolean;
+  role: 'admin' | 'manager';
+  createdAt: string;
+}
+

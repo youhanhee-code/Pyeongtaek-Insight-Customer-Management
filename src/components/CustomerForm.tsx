@@ -1,12 +1,14 @@
 import { useState, useEffect, ChangeEvent, FormEvent } from 'react';
-import { Customer } from '../types';
+import { Customer, ManagerUser } from '../types';
 import { Sparkles, Phone, User, Landmark, HelpCircle, FilePlus, X, HelpCircle as HelpIcon, AlertCircle } from 'lucide-react';
+import { getManagers } from '../utils/auth';
 
 interface CustomerFormProps {
   onSave: (customer: Customer) => void;
   existingCustomers: Customer[];
   groups: string[];
   statuses: string[];
+  currentUser?: ManagerUser | null;
 }
 
 const CUSTOMER_TYPES = [
@@ -22,7 +24,7 @@ const CUSTOMER_TYPES = [
 
 const PRESET_DOCUMENTS = ['계약서', '등기부등본', '신분증 사본', '상담 자료', '기타 문서'];
 
-export default function CustomerForm({ onSave, existingCustomers, groups, statuses }: CustomerFormProps) {
+export default function CustomerForm({ onSave, existingCustomers, groups, statuses, currentUser }: CustomerFormProps) {
   // Form State
   const [name, setName] = useState('');
   const [gender, setGender] = useState<'남자' | '여자'>('남자');
@@ -44,6 +46,25 @@ export default function CustomerForm({ onSave, existingCustomers, groups, status
   const [duplicateName, setDuplicateName] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Dynamic available managers list
+  const [availableManagers, setAvailableManagers] = useState<string[]>([]);
+
+  useEffect(() => {
+    const mgrs = getManagers().filter(m => m.isApproved && m.role !== 'admin').map(m => m.name);
+    const unique = Array.from(new Set([...mgrs, '유한희 중개사', '유진옥 중개사', '김서하 중개사']));
+    setAvailableManagers(unique);
+  }, []);
+
+  useEffect(() => {
+    if (currentUser) {
+      if (currentUser.role !== 'admin') {
+        setManagerName(currentUser.name);
+      } else {
+        setManagerName('유한희 중개사');
+      }
+    }
+  }, [currentUser]);
 
   // Phone input formatting (010-XXXX-XXXX or similar)
   const formatPhoneNumber = (value: string) => {
@@ -253,11 +274,18 @@ export default function CustomerForm({ onSave, existingCustomers, groups, status
                 <select
                   value={managerName}
                   onChange={(e) => setManagerName(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 focus:border-slate-900 focus:bg-white rounded-xl px-3 py-2 text-sm text-slate-800 outline-none"
+                  disabled={currentUser && currentUser.role !== 'admin'}
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-slate-900 focus:bg-white rounded-xl px-3 py-2 text-sm text-slate-800 outline-none disabled:opacity-75 disabled:cursor-not-allowed"
                 >
-                  <option value="유한희 중개사">유한희 중개사</option>
-                  <option value="유진옥 중개사">유진옥 중개사</option>
-                  <option value="김서하 중개사">김서하 중개사</option>
+                  {currentUser && currentUser.role !== 'admin' ? (
+                    <option value={currentUser.name}>{currentUser.name}</option>
+                  ) : (
+                    availableManagers.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
             </div>
