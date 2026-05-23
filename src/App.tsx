@@ -85,11 +85,11 @@ export default function App() {
     saveCustomers([]);
   };
 
-  const handleToggleCustomerShare = (id: string) => {
+  const handleUpdateCustomerShare = (id: string, isShared: boolean, sharedManagerIds: string[]) => {
     setCustomers((prev) => {
       const updated = prev.map((c) => {
         if (c.id === id) {
-          return { ...c, isShared: !c.isShared };
+          return { ...c, isShared, sharedManagerIds };
         }
         return c;
       });
@@ -221,7 +221,11 @@ export default function App() {
   // Filter visible customers based on role and real-time sharing preferences (row-level sharing)
   const visibleCustomers = currentUser.role === 'admin'
     ? customers
-    : customers.filter(c => c.managerName === currentUser.name || c.isShared === true);
+    : customers.filter(c => 
+        c.managerName === currentUser.name || 
+        c.isShared === true || 
+        c.sharedManagerIds?.includes(currentUser.id)
+      );
 
   return (
     <div className="geometric-grid text-slate-800 min-h-screen font-sans">
@@ -365,7 +369,7 @@ export default function App() {
                 onAddNote={handleAddNote}
                 onAddFile={handleAddFile}
                 currentUser={currentUser}
-                onToggleCustomerShare={handleToggleCustomerShare}
+                onUpdateCustomerShare={handleUpdateCustomerShare}
               />
             </div>
 

@@ -19,6 +19,7 @@ export interface Customer {
   createdAt: string;
   managerName: string;
   isShared?: boolean; // 대표 유한희 중개사와 타 중개사(김서하 등) 간 동시 데이터 공유 여부
+  sharedManagerIds?: string[]; // 특정 공인중개사 간 동시 데이터 공유를 위한 중개사 ID 목록
   // Dynamic fields based on role
   budget?: string; // 예산 (매수인, 임차인용)
   preferredArea?: string; // 희망지역 (매수인, 임차인용)

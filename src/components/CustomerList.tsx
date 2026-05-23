@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Customer, CustomerNote, ManagerUser } from '../types';
 import { Search, Phone, User, Calendar, Folder, Plus, Trash2, ChevronDown, ChevronUp, FileText, CheckCircle2, UserCheck, PlusCircle, Handshake } from 'lucide-react';
+import { getManagers } from '../utils/auth';
 
 interface CustomerListProps {
   customers: Customer[];
@@ -11,7 +12,7 @@ interface CustomerListProps {
   onAddNote: (id: string, content: string) => void;
   onAddFile: (id: string, fileName: string) => void;
   currentUser: ManagerUser;
-  onToggleCustomerShare: (id: string) => void;
+  onUpdateCustomerShare: (id: string, isShared: boolean, sharedManagerIds: string[]) => void;
 }
 
 const CUSTOMER_TYPES = ['전체', '매수인', '임차인', '매도인', '임대인', '관리인', '대리인', '중개사', '기타'];
@@ -25,13 +26,14 @@ export default function CustomerList({
   onAddNote,
   onAddFile,
   currentUser,
-  onToggleCustomerShare
+  onUpdateCustomerShare
 }: CustomerListProps) {
   // Filters State
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState('전체');
   const [selectedGroup, setSelectedGroup] = useState('전체');
   const [selectedStatus, setSelectedStatus] = useState('전체');
+  const [sharingMenuOpenId, setSharingMenuOpenId] = useState<string | null>(null);
 
   // Expanded cards state
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
@@ -208,31 +210,120 @@ export default function CustomerList({
                           {customer.group}
                         </span>
                         
-                        {/* Simultaneous sharing switch (Admin Toggleable, Manager Read-only) */}
+                        {/* Simultaneous sharing switch (Admin Toggleable with dropdown, Manager Read-only Status Card) */}
                         {currentUser.role === 'admin' ? (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onToggleCustomerShare(customer.id);
-                            }}
-                            className={`inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-lg border transition duration-150 cursor-pointer active:scale-95 ${
-                              customer.isShared
-                                ? 'bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200'
-                                : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
-                            }`}
-                            title="대표 관리자 전용: 이 특정 고객 데이터를 전 공인중개사와 실시간 동시 공유 지정"
-                          >
-                            <Handshake className={`w-3.5 h-3.5 ${customer.isShared ? 'text-blue-600 animate-pulse' : 'text-slate-400'}`} />
-                            <span>동시 공유 {customer.isShared ? 'ON' : 'OFF'}</span>
-                          </button>
+                          <div className="relative inline-block">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSharingMenuOpenId(sharingMenuOpenId === customer.id ? null : customer.id);
+                              }}
+                              className={`inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-lg border transition-all duration-150 cursor-pointer active:scale-95 ${
+                                customer.isShared || (customer.sharedManagerIds && customer.sharedManagerIds.length > 0)
+                                  ? 'bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200'
+                                  : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                              }`}
+                              title="대표 전용: 특정 중개사 지정 실시간 데이터 공유 설정"
+                            >
+                              <Handshake className={`w-3.5 h-3.5 ${(customer.isShared || (customer.sharedManagerIds && customer.sharedManagerIds.length > 0)) ? 'text-blue-600 animate-pulse' : 'text-slate-400'}`} />
+                              <span>
+                                {customer.isShared 
+                                  ? '모두동시공유' 
+                                  : (customer.sharedManagerIds && customer.sharedManagerIds.length > 0)
+                                    ? `${getManagers().filter(m => customer.sharedManagerIds?.includes(m.id)).map(m => m.name.split(' ')[0]).join(', ')} 공유`
+                                    : '동시공유 지정'
+                                }
+                              </span>
+                              <ChevronDown className="w-3 h-3 text-slate-400" />
+                            </button>
+                            
+                            {sharingMenuOpenId === customer.id && (
+                              <div 
+                                className="absolute left-0 mt-2 w-56 bg-white border border-slate-200/80 rounded-2xl shadow-xl z-50 p-3.5 space-y-3 text-left animate-fade-in text-xs"
+                                onClick={(e) => e.stopPropagation()} // Prevent card collapse on click
+                              >
+                                <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                                  <span className="text-2xs font-extrabold text-slate-900">🔗 공유 대상 지정</span>
+                                  <button 
+                                    type="button" 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSharingMenuOpenId(null);
+                                    }}
+                                    className="text-2xs text-slate-400 hover:text-slate-600 font-bold p-1 rounded-md hover:bg-slate-50 cursor-pointer"
+                                  >
+                                    닫기
+                                  </button>
+                                </div>
+
+                                {/* Global / Full Share option */}
+                                <label className="flex items-center gap-2 px-1 py-1 rounded-lg hover:bg-slate-50 cursor-pointer transition">
+                                  <input
+                                    type="checkbox"
+                                    checked={!!customer.isShared}
+                                    onChange={(e) => {
+                                      e.stopPropagation();
+                                      onUpdateCustomerShare(customer.id, !customer.isShared, customer.sharedManagerIds || []);
+                                    }}
+                                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-3.5 w-3.5 cursor-pointer"
+                                  />
+                                  <div className="leading-tight">
+                                    <span className="text-2xs font-extrabold text-slate-800 block">모든 중개사와 공유 (전체)</span>
+                                    <span className="text-[9px] text-slate-400 block mt-0.5">승인된 소속 전원 공유</span>
+                                  </div>
+                                </label>
+
+                                <div className="pt-2 border-t border-slate-100/60">
+                                  <span className="text-[10px] font-extrabold text-slate-400 block px-1 mb-1.5">🤝 특정 중개사 지정 선택</span>
+                                  {getManagers().filter(m => m.role !== 'admin' && m.isApproved).length === 0 ? (
+                                    <span className="text-[10px] text-slate-400 italic block px-1">승인된 중개사가 없습니다.</span>
+                                  ) : (
+                                    <div className="max-h-28 overflow-y-auto space-y-1 pr-0.5">
+                                      {getManagers().filter(m => m.role !== 'admin' && m.isApproved).map((mgr) => {
+                                        const isSelected = !!customer.sharedManagerIds?.includes(mgr.id);
+                                        return (
+                                          <label key={mgr.id} className="flex items-center gap-2 px-1.5 py-1 rounded-lg hover:bg-slate-50 cursor-pointer transition">
+                                            <input
+                                              type="checkbox"
+                                              checked={isSelected}
+                                              disabled={!!customer.isShared} // disabled if universally shared
+                                              onChange={(e) => {
+                                                e.stopPropagation();
+                                                const currentList = customer.sharedManagerIds || [];
+                                                const newList = isSelected
+                                                  ? currentList.filter(id => id !== mgr.id)
+                                                  : [...currentList, mgr.id];
+                                                onUpdateCustomerShare(customer.id, !!customer.isShared, newList);
+                                              }}
+                                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-3.5 w-3.5 cursor-pointer disabled:opacity-50"
+                                            />
+                                            <span className={`text-2xs font-bold ${customer.isShared ? 'text-slate-450' : 'text-slate-700'}`}>
+                                              👤 {mgr.name}
+                                            </span>
+                                          </label>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         ) : (
-                          customer.isShared && (
-                            <span className="bg-blue-50 text-blue-800 border-blue-100 border text-[10px] font-extrabold px-2 py-0.5 rounded-lg flex items-center gap-1 shadow-2xs">
-                              <Handshake className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
-                              동시 공유중
-                            </span>
-                          )
+                          <>
+                            {customer.isShared ? (
+                              <span className="bg-blue-50 text-blue-800 border-blue-100 border text-[10px] font-extrabold px-2 py-0.5 rounded-lg flex items-center gap-1 shadow-2xs">
+                                <Handshake className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
+                                전체 동시공유중
+                              </span>
+                            ) : customer.sharedManagerIds?.includes(currentUser.id) ? (
+                              <span className="bg-emerald-50 text-emerald-850 border-emerald-100 border text-[10px] font-extrabold px-2 py-0.5 rounded-lg flex items-center gap-1 shadow-2xs">
+                                <Handshake className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
+                                대표 지정 동시공유중
+                              </span>
+                            ) : null}
+                          </>
                         )}
                       </div>
 

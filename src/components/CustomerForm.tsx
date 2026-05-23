@@ -339,6 +339,15 @@ export default function CustomerForm({ onSave, existingCustomers, groups, status
     );
   };
 
+  const handleBatchGroupChange = (newGroup: string) => {
+    setImportedCustomers((prev) =>
+      prev.map((cust) => ({
+        ...cust,
+        group: newGroup,
+      }))
+    );
+  };
+
   const handleRowTypeChange = (idx: number, newType: string) => {
     setImportedCustomers((prev) =>
       prev.map((cust, index) => {
@@ -349,6 +358,18 @@ export default function CustomerForm({ onSave, existingCustomers, groups, status
           budget: ['매수인', '임차인'].includes(newType) ? (cust.budget || '') : undefined,
           preferredArea: ['매수인', '임차인'].includes(newType) ? (cust.preferredArea || '') : undefined,
           propertyDetails: ['매도인', '임대인', '관리인'].includes(newType) ? (cust.propertyDetails || '') : undefined,
+        };
+      })
+    );
+  };
+
+  const handleRowGroupChange = (idx: number, newGroup: string) => {
+    setImportedCustomers((prev) =>
+      prev.map((cust, index) => {
+        if (index !== idx) return cust;
+        return {
+          ...cust,
+          group: newGroup,
         };
       })
     );
@@ -566,27 +587,52 @@ export default function CustomerForm({ onSave, existingCustomers, groups, status
                 </span>
               </div>
 
-              {/* Batch Action Widget */}
-              <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <h5 className="text-xs font-black text-slate-900 flex items-center gap-1.5">
-                    💡 의뢰유형 일괄 지정하기
-                  </h5>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    선택 시 대기열에 있는 모든 업로드 고객의 의뢰유형이 한 번에 변경됩니다.
-                  </p>
+              {/* Batch Action Widget - Dual Type and Group Controls */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-2xl flex flex-col justify-between gap-3 shadow-xs">
+                  <div>
+                    <h5 className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                      💡 의뢰유형 일괄 지정하기
+                    </h5>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      대기열에 있는 모든 고객의 의뢰유형을 원클릭으로 일괄 변환합니다.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {['매수인', '임차인', '매도인', '임대인', '관리인', '대리인', '중개사', '기타'].map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => handleBatchTypeChange(t)}
+                        className="bg-white hover:bg-slate-900 hover:text-white text-slate-800 font-bold border border-slate-200 rounded-lg px-2.5 py-1 text-2xs transition active:scale-95 cursor-pointer"
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-1 md:justify-end">
-                  {['매수인', '임차인', '매도인', '임대인', '관리인', '대리인', '중개사', '기타'].map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => handleBatchTypeChange(t)}
-                      className="bg-white hover:bg-slate-900 hover:text-white text-slate-800 font-bold border border-slate-200 rounded-lg px-2.5 py-1 text-2xs transition active:scale-95 cursor-pointer"
-                    >
-                      {t}
-                    </button>
-                  ))}
+
+                <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-2xl flex flex-col justify-between gap-3 shadow-xs">
+                  <div>
+                    <h5 className="text-xs font-black text-[#0F172A] flex items-center gap-1.5">
+                      🏷️ 분류그룹 일괄 지정하기
+                    </h5>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      대기열에 있는 모든 고객의 분류그룹설정을 일괄 변환합니다.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {groups.map((g) => (
+                      <button
+                        key={g}
+                        type="button"
+                        onClick={() => handleBatchGroupChange(g)}
+                        className="bg-white hover:bg-slate-900 hover:text-white text-slate-800 font-bold border border-slate-200 rounded-lg px-2.5 py-1 text-2xs transition active:scale-95 cursor-pointer"
+                      >
+                        {g}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -598,6 +644,7 @@ export default function CustomerForm({ onSave, existingCustomers, groups, status
                       <th className="px-4 py-3">이름/성별</th>
                       <th className="px-4 py-3">연락처</th>
                       <th className="px-4 py-3">의뢰유형(수정 가능)</th>
+                      <th className="px-4 py-3">분류그룹(수정 가능)</th>
                       <th className="px-4 py-3">담당자</th>
                       <th className="px-4 py-3">진행검출</th>
                     </tr>
@@ -613,13 +660,26 @@ export default function CustomerForm({ onSave, existingCustomers, groups, status
                           <td className="px-4 py-2.5 font-mono text-slate-600">{cust.phone}</td>
                           <td className="px-4 py-2.5">
                             <select
-                              value={cust.type}
-                              onChange={(e) => handleRowTypeChange(idx, e.target.value)}
-                              className="bg-slate-50 border border-slate-250 rounded-lg px-2 py-1 text-2xs font-extrabold text-slate-800 focus:bg-white focus:border-[#0F172A] outline-none cursor-pointer"
+                               value={cust.type}
+                               onChange={(e) => handleRowTypeChange(idx, e.target.value)}
+                               className="bg-slate-50 border border-slate-250 rounded-lg px-2 py-1 text-2xs font-extrabold text-slate-800 focus:bg-white focus:border-[#0F172A] outline-none cursor-pointer"
                             >
                               {['매수인', '임차인', '매도인', '임대인', '관리인', '대리인', '중개사', '기타'].map((t) => (
                                 <option key={t} value={t}>
                                   {t}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <select
+                               value={cust.group}
+                               onChange={(e) => handleRowGroupChange(idx, e.target.value)}
+                               className="bg-slate-50 border border-slate-250 rounded-lg px-2 py-1 text-2xs font-extrabold text-slate-805 focus:bg-white focus:border-[#0F172A] outline-none cursor-pointer"
+                            >
+                              {groups.map((g) => (
+                                <option key={g} value={g}>
+                                  {g}
                                 </option>
                               ))}
                             </select>
