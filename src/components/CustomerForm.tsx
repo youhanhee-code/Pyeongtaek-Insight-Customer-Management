@@ -327,6 +327,33 @@ export default function CustomerForm({ onSave, existingCustomers, groups, status
     }, 4000);
   };
 
+  const handleBatchTypeChange = (newType: string) => {
+    setImportedCustomers((prev) =>
+      prev.map((cust) => ({
+        ...cust,
+        type: newType,
+        budget: ['매수인', '임차인'].includes(newType) ? (cust.budget || '') : undefined,
+        preferredArea: ['매수인', '임차인'].includes(newType) ? (cust.preferredArea || '') : undefined,
+        propertyDetails: ['매도인', '임대인', '관리인'].includes(newType) ? (cust.propertyDetails || '') : undefined,
+      }))
+    );
+  };
+
+  const handleRowTypeChange = (idx: number, newType: string) => {
+    setImportedCustomers((prev) =>
+      prev.map((cust, index) => {
+        if (index !== idx) return cust;
+        return {
+          ...cust,
+          type: newType,
+          budget: ['매수인', '임차인'].includes(newType) ? (cust.budget || '') : undefined,
+          preferredArea: ['매수인', '임차인'].includes(newType) ? (cust.preferredArea || '') : undefined,
+          propertyDetails: ['매도인', '임대인', '관리인'].includes(newType) ? (cust.propertyDetails || '') : undefined,
+        };
+      })
+    );
+  };
+
   const handlePhoneChange = (e: ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhoneNumber(e.target.value);
     setPhone(formatted);
@@ -529,24 +556,48 @@ export default function CustomerForm({ onSave, existingCustomers, groups, status
 
           {/* Parsed Rows Preview block */}
           {importedCustomers.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
+            <div className="space-y-4 animate-fade-in">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                 <span className="text-xs font-bold text-slate-500">
                   📋 업로드 분석 결과: 총 <strong className="text-slate-800 font-extrabold">{importedCustomers.length}명</strong>의 고객 감지됨
                 </span>
-                <span className="text-2xs text-[#0F172A] bg-blue-50 border border-blue-100 px-2 py-1 rounded-md font-bold">
-                  ⚠️ 번호 중복 가드 실시간 켜짐
+                <span className="text-2xs text-[#0F172A] bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-md font-bold">
+                  ⚠️ 번호 중복 가드 실시간 작동 중
                 </span>
               </div>
 
+              {/* Batch Action Widget */}
+              <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h5 className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                    💡 의뢰유형 일괄 지정하기
+                  </h5>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    선택 시 대기열에 있는 모든 업로드 고객의 의뢰유형이 한 번에 변경됩니다.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-1 md:justify-end">
+                  {['매수인', '임차인', '매도인', '임대인', '관리인', '대리인', '중개사', '기타'].map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => handleBatchTypeChange(t)}
+                      className="bg-white hover:bg-slate-900 hover:text-white text-slate-800 font-bold border border-slate-200 rounded-lg px-2.5 py-1 text-2xs transition active:scale-95 cursor-pointer"
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Responsive Table */}
-              <div className="overflow-x-auto max-h-72 border border-slate-100 rounded-xl">
+              <div className="overflow-x-auto max-h-80 border border-slate-100 rounded-xl shadow-xs">
                 <table className="w-full text-left text-xs bg-slate-50/50">
                   <thead className="bg-[#0F172A] text-white text-2xs uppercase tracking-wider font-semibold sticky top-0">
                     <tr>
                       <th className="px-4 py-3">이름/성별</th>
                       <th className="px-4 py-3">연락처</th>
-                      <th className="px-4 py-3">의뢰유형</th>
+                      <th className="px-4 py-3">의뢰유형(수정 가능)</th>
                       <th className="px-4 py-3">담당자</th>
                       <th className="px-4 py-3">진행검출</th>
                     </tr>
@@ -561,9 +612,17 @@ export default function CustomerForm({ onSave, existingCustomers, groups, status
                           </td>
                           <td className="px-4 py-2.5 font-mono text-slate-600">{cust.phone}</td>
                           <td className="px-4 py-2.5">
-                            <span className="bg-slate-100 text-slate-800 border px-2 py-0.5 rounded-md font-semibold text-2xs">
-                              {cust.type}
-                            </span>
+                            <select
+                              value={cust.type}
+                              onChange={(e) => handleRowTypeChange(idx, e.target.value)}
+                              className="bg-slate-50 border border-slate-250 rounded-lg px-2 py-1 text-2xs font-extrabold text-slate-800 focus:bg-white focus:border-[#0F172A] outline-none cursor-pointer"
+                            >
+                              {['매수인', '임차인', '매도인', '임대인', '관리인', '대리인', '중개사', '기타'].map((t) => (
+                                <option key={t} value={t}>
+                                  {t}
+                                </option>
+                              ))}
+                            </select>
                           </td>
                           <td className="px-4 py-2.5 font-medium text-slate-600">{cust.managerName}</td>
                           <td className="px-4 py-2.5">
