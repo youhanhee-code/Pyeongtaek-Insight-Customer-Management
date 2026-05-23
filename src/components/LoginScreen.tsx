@@ -73,13 +73,6 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     }
   };
 
-  const autoFill = (uid: string, pass: string) => {
-    setUsername(uid);
-    setPassword(pass);
-    setIsRegisterMode(false);
-    setError('');
-  };
-
   return (
     <div className="min-h-screen geometric-grid flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden self-center">
@@ -235,44 +228,6 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
             </form>
           )}
 
-          {/* Quick tester helper widget */}
-          <div className="mt-8 border-t border-slate-100 pt-6">
-            <h4 className="text-[11px] font-extrabold text-[#0F172A] uppercase tracking-wider mb-3">⚡ 평가 및 테스트용 계정 퀵로그인</h4>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => autoFill('admin', 'admin')}
-                className="bg-slate-900 text-white hover:bg-black py-2.5 px-3 rounded-xl text-2xs font-bold leading-tight flex flex-col items-center justify-center text-center transition"
-              >
-                <span className="text-blue-400 font-black">대표 관리자</span>
-                <span className="text-[10px] text-slate-400 font-mono mt-0.5 mt-0.5">ID: admin / PW: admin</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => autoFill('yoo', '123123')}
-                className="bg-slate-50 border hover:bg-slate-100 text-slate-800 py-2.5 px-3 rounded-xl text-2xs font-bold leading-tight flex flex-col items-center justify-center text-center transition"
-              >
-                <span className="text-slate-950">유한희 중개사</span>
-                <span className="text-[10px] text-slate-500 font-mono mt-0.5">ID: yoo / PW: 123123</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => autoFill('jin', '123123')}
-                className="bg-slate-50 border hover:bg-slate-100 text-slate-800 py-2.5 px-3 rounded-xl text-2xs font-bold leading-tight flex flex-col items-center justify-center text-center transition py-2.5"
-              >
-                <span className="text-slate-950">유진옥 중개사</span>
-                <span className="text-[10px] text-slate-500 font-mono mt-0.5">ID: jin / PW: 123123</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => autoFill('kim', '123123')}
-                className="bg-slate-50 border hover:bg-slate-100 text-slate-800 py-2.5 px-3 rounded-xl text-2xs font-bold leading-tight flex flex-col items-center justify-center text-center transition"
-              >
-                <span className="text-slate-950">김서하 중개사</span>
-                <span className="text-[10px] text-slate-500 font-mono mt-0.5">ID: kim / PW: 123123</span>
-              </button>
-            </div>
-          </div>
         </div>
 
       </div>
