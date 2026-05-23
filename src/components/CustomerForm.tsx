@@ -5,7 +5,7 @@ import { getManagers } from '../utils/auth';
 import * as XLSX from 'xlsx';
 
 interface CustomerFormProps {
-  onSave: (customer: Customer) => void;
+  onSave: (customer: Customer | Customer[]) => void;
   existingCustomers: Customer[];
   groups: string[];
   statuses: string[];
@@ -159,27 +159,63 @@ export default function CustomerForm({ onSave, existingCustomers, groups, status
           return;
         }
 
-        const headers = (rawData[0] || []) as string[];
-        const rows = rawData.slice(1);
+        // Search first 15 rows to find the best header row index
+        let headerRowIndex = 0;
+        let maxMatches = -1;
+        for (let i = 0; i < Math.min(rawData.length, 15); i++) {
+          const row = rawData[i];
+          if (!Array.isArray(row)) continue;
+          let matches = 0;
+          row.forEach(cell => {
+            if (!cell) return;
+            const str = cell.toString().toLowerCase().trim();
+            if (str.includes('이름') || str.includes('고객명') || str.includes('성명') || str.includes('성함') || str.toLowerCase() === 'name') matches += 2;
+            if (str.includes('연락처') || str.includes('전화') || str.includes('휴대폰') || str.includes('폰번호') || str.includes('핸드폰') || str.toLowerCase() === 'phone' || str.toLowerCase() === 'tel') matches += 2;
+            if (str.includes('구분') || str.includes('의뢰') || str.includes('유형') || str.includes('성별') || str.includes('메모') || str.includes('상태') || str.includes('담당')) matches += 1;
+          });
+          if (matches > maxMatches && matches > 0) {
+            maxMatches = matches;
+            headerRowIndex = i;
+          }
+        }
+
+        const headers = (rawData[headerRowIndex] || []) as any[];
+        const rows = rawData.slice(headerRowIndex + 1);
 
         const getColumnIndex = (names: string[]): number => {
           return headers.findIndex(h => 
-            h && names.some(n => h.toString().toLowerCase().trim().includes(n))
+            h !== undefined && h !== null && names.some(n => h.toString().toLowerCase().trim().includes(n))
           );
         };
 
-        const nameIdx = getColumnIndex(['이름', '고객명', '성함', '고객']);
-        const phoneIdx = getColumnIndex(['연락처', '전화번호', '휴대폰', '폰번호', '전화']);
-        const divisionIdx = getColumnIndex(['의뢰지위', '의뢰구분', '구분', '개인/법인']);
-        const typeIdx = getColumnIndex(['의뢰유형', '유형', '타입', '지위']);
-        const genderIdx = getColumnIndex(['성별']);
-        const budgetIdx = getColumnIndex(['예산', '투자예산', '금액']);
-        const areaIdx = getColumnIndex(['희망지역', '선호지역', '지역']);
-        const propertyIdx = getColumnIndex(['매물정보', '소재지', '매물']);
-        const groupIdx = getColumnIndex(['분류그룹', '그룹', '분류']);
-        const statusIdx = getColumnIndex(['상태', '진행상태']);
-        const managerIdx = getColumnIndex(['담당자', '담당중개인', '중개사']);
-        const memoIdx = getColumnIndex(['상담메모', '상담내용', '메모', '상세내용']);
+        let nameIdx = getColumnIndex(['이름', '고객명', '성명', '성함', '고객', 'name']);
+        let phoneIdx = getColumnIndex(['연락처', '전화번호', '휴대폰', '폰번호', '전화', '핸드폰', 'phone', 'tel']);
+        
+        // Fallback option in case headers couldn't be detected by text:
+        if (nameIdx === -1 || phoneIdx === -1) {
+          if (headers.length >= 2) {
+            // Find a row with numeric field to assume it is the phone column
+            const firstWithData = rows.find(r => Array.isArray(r) && r.some(c => c && c.toString().trim().length > 0));
+            if (firstWithData) {
+              const detectedPhoneIdx = firstWithData.findIndex(cell => cell && /[0-9\-\(\)\s]{8,15}/.test(cell.toString()));
+              if (detectedPhoneIdx !== -1) {
+                phoneIdx = detectedPhoneIdx;
+                nameIdx = detectedPhoneIdx === 0 ? 1 : 0;
+              }
+            }
+          }
+        }
+
+        const divisionIdx = getColumnIndex(['의뢰지위', '의뢰구분', '구분', '개인/법인', '지위', 'division']);
+        const typeIdx = getColumnIndex(['의뢰유형', '유형', '타입', '매수', '매도', '임차', '임대', 'type']);
+        const genderIdx = getColumnIndex(['성별', 'gender']);
+        const budgetIdx = getColumnIndex(['예산', '투자예산', '금액', 'budget']);
+        const areaIdx = getColumnIndex(['희망지역', '선호지역', '지역', 'area']);
+        const propertyIdx = getColumnIndex(['매물정보', '소재지', '매물', 'property']);
+        const groupIdx = getColumnIndex(['분류그룹', '그룹', '분류', 'group']);
+        const statusIdx = getColumnIndex(['상태', '진행상태', 'status']);
+        const managerIdx = getColumnIndex(['담당자', '담당중개인', '중개사', 'manager']);
+        const memoIdx = getColumnIndex(['상담메모', '상담내용', '메모', '상세내용', 'memo']);
 
         if (nameIdx === -1 || phoneIdx === -1) {
           setExcelError("필수 열(예: '이름(필수)' 및 '연락처(필수)')을 찾을 수 없습니다. 올바른 전용 양식을 활용해 주십시오.");
@@ -188,17 +224,26 @@ export default function CustomerForm({ onSave, existingCustomers, groups, status
 
         const customersToRegister: Customer[] = [];
         rows.forEach((row, index) => {
+          if (!Array.isArray(row)) return;
           const rawName = row[nameIdx]?.toString().trim() || '';
           let rawPhone = row[phoneIdx]?.toString().trim() || '';
 
           if (!rawName || !rawPhone) return;
 
+          // Excel formatted numbers starting with 0 sometimes drop the 0, e.g. 1012345678 instead of 01012345678
+          const cleanDigits = rawPhone.replace(/[^0-9]/g, '');
+          if (cleanDigits.length === 10 && cleanDigits.startsWith('10')) {
+            rawPhone = '0' + cleanDigits;
+          } else if (cleanDigits.length === 9 && cleanDigits.startsWith('1')) {
+            rawPhone = '010' + cleanDigits;
+          }
+
           const formattedPhone = formatPhoneNumber(rawPhone);
 
-          const rawDivision = row[divisionIdx]?.toString().trim() || '';
+          const rawDivision = divisionIdx !== -1 && row[divisionIdx] ? row[divisionIdx].toString().trim() : '';
           const finalDivision: '개인' | '법인' = rawDivision.includes('법인') ? '법인' : '개인';
 
-          const rawType = row[typeIdx]?.toString().trim() || '';
+          const rawType = typeIdx !== -1 && row[typeIdx] ? row[typeIdx].toString().trim() : '';
           let finalType = '매수인';
           if (rawType.includes('임차')) finalType = '임차인';
           else if (rawType.includes('매도')) finalType = '매도인';
@@ -208,23 +253,23 @@ export default function CustomerForm({ onSave, existingCustomers, groups, status
           else if (rawType.includes('중개')) finalType = '중개사';
           else if (rawType.includes('기타')) finalType = '기타';
 
-          const rawGender = row[genderIdx]?.toString().trim() || '';
+          const rawGender = genderIdx !== -1 && row[genderIdx] ? row[genderIdx].toString().trim() : '';
           const finalGender: '남자' | '여자' = rawGender.includes('여') ? '여자' : '남자';
 
-          const finalBudget = row[budgetIdx]?.toString().trim() || '';
-          const finalArea = row[areaIdx]?.toString().trim() || '';
-          const finalProperty = row[propertyIdx]?.toString().trim() || '';
+          const finalBudget = budgetIdx !== -1 && row[budgetIdx] ? row[budgetIdx].toString().trim() : '';
+          const finalArea = areaIdx !== -1 && row[areaIdx] ? row[areaIdx].toString().trim() : '';
+          const finalProperty = propertyIdx !== -1 && row[propertyIdx] ? row[propertyIdx].toString().trim() : '';
 
-          const rawGroup = row[groupIdx]?.toString().trim() || '';
+          const rawGroup = groupIdx !== -1 && row[groupIdx] ? row[groupIdx].toString().trim() : '';
           const finalGroup = groups.includes(rawGroup) ? rawGroup : (groups[0] || '신규 고객');
 
-          const rawStatus = row[statusIdx]?.toString().trim() || '';
+          const rawStatus = statusIdx !== -1 && row[statusIdx] ? row[statusIdx].toString().trim() : '';
           const finalStatus = statuses.includes(rawStatus) ? rawStatus : (statuses[0] || '상담중');
 
-          const rawManager = row[managerIdx]?.toString().trim() || '';
+          const rawManager = managerIdx !== -1 && row[managerIdx] ? row[managerIdx].toString().trim() : '';
           const finalManager = rawManager || (currentUser?.name || managerName);
 
-          const rawMemo = row[memoIdx]?.toString().trim() || '';
+          const rawMemo = memoIdx !== -1 && row[memoIdx] ? row[memoIdx].toString().trim() : '';
           const finalMemo = rawMemo || '엑셀 일괄 등록을 통해 생성되었습니다.';
 
           customersToRegister.push({
@@ -259,21 +304,22 @@ export default function CustomerForm({ onSave, existingCustomers, groups, status
     };
 
     reader.readAsArrayBuffer(file);
+    
+    // Reset file input value to allow triggering onChange with the same file multiple times
+    e.target.value = '';
   };
 
   const handleSaveImported = () => {
     if (importedCustomers.length === 0) return;
 
-    let savedCount = 0;
-    importedCustomers.forEach((cust) => {
-      onSave({
-        ...cust,
-        id: `cust-${Date.now()}-${Math.floor(Math.random() * 100000)}`
-      });
-      savedCount++;
-    });
+    const customersWithFreshIds = importedCustomers.map((cust, idx) => ({
+      ...cust,
+      id: `cust-${Date.now()}-${idx}-${Math.floor(Math.random() * 100000)}`
+    }));
 
-    setExcelSuccessMsg(`총 ${savedCount}명의 고객이 실시간 데이터베이스에 성공적으로 저장되었습니다!`);
+    onSave(customersWithFreshIds);
+
+    setExcelSuccessMsg(`총 ${customersWithFreshIds.length}명의 고객이 실시간 데이터베이스에 성공적으로 저장되었습니다!`);
     setImportedCustomers([]);
     setExcelFile(null);
     setTimeout(() => {

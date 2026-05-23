@@ -60,10 +60,17 @@ export default function App() {
   };
 
   // Save updates to storage and synchronize state
-  const handleSaveCustomer = (newCustomer: Customer) => {
-    const updated = [newCustomer, ...customers];
-    setCustomers(updated);
-    saveCustomers(updated);
+  const handleSaveCustomer = (newCustomerOrList: Customer | Customer[]) => {
+    setCustomers((prev) => {
+      let updated: Customer[];
+      if (Array.isArray(newCustomerOrList)) {
+        updated = [...newCustomerOrList, ...prev];
+      } else {
+        updated = [newCustomerOrList, ...prev];
+      }
+      saveCustomers(updated);
+      return updated;
+    });
   };
 
   const handleDeleteCustomer = (id: string) => {
