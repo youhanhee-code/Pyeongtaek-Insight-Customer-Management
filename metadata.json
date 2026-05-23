@@ -1,0 +1,6 @@
+{
+  "name": "공인중개사 CRM",
+  "description": "공인중개사를 위한 강력하고 심플한 CRM 시스템 - 고객 등록, 상담 일지, 중복 방지, 계약단계 및 문서 첨부 관리 지원",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
