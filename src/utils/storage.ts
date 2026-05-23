@@ -25,7 +25,7 @@ const DUMMY_CUSTOMERS: Customer[] = [
     ],
     files: ['등기부등본.pdf', '상담 자료.pdf'],
     createdAt: '2026-05-19T09:00:00Z',
-    managerName: '이강민 중개사',
+    managerName: '유한희 중개사',
     budget: '50억 ~ 70억',
     preferredArea: '서울 강남구 역삼동, 삼성동'
   },
@@ -44,7 +44,7 @@ const DUMMY_CUSTOMERS: Customer[] = [
     ],
     files: ['신분증 사본.png'],
     createdAt: '2026-05-21T10:45:00Z',
-    managerName: '이지원 상무',
+    managerName: '유진옥 중개사',
     budget: '전세 15억',
     preferredArea: '서울 서초구 서초동'
   },
@@ -64,7 +64,7 @@ const DUMMY_CUSTOMERS: Customer[] = [
     ],
     files: ['계약서_날인본.pdf', '건축물대장.pdf', '등기부등본.pdf'],
     createdAt: '2026-05-15T10:00:00Z',
-    managerName: '김진우 소장',
+    managerName: '김서하 중개사',
     propertyDetails: '서울 송파구 방이동 98-3 상가빌딩'
   },
   {
@@ -80,7 +80,7 @@ const DUMMY_CUSTOMERS: Customer[] = [
     notes: [],
     files: ['임대차신청목록.xlsx'],
     createdAt: '2026-05-22T16:30:00Z',
-    managerName: '이강민 중개사',
+    managerName: '유한희 중개사',
     propertyDetails: '서울 마포구 공덕동 공덕팰리스 802호'
   }
 ];

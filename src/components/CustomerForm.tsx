@@ -32,7 +32,7 @@ export default function CustomerForm({ onSave, existingCustomers, groups, status
   const [group, setGroup] = useState(groups[0] || '신규 고객');
   const [status, setStatus] = useState(statuses[0] || '상담중');
   const [memo, setMemo] = useState('');
-  const [managerName, setManagerName] = useState('이강민 중개사');
+  const [managerName, setManagerName] = useState('유한희 중개사');
 
   // Dynamic role fields
   const [budget, setBudget] = useState('');
@@ -255,10 +255,9 @@ export default function CustomerForm({ onSave, existingCustomers, groups, status
                   onChange={(e) => setManagerName(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 focus:border-slate-900 focus:bg-white rounded-xl px-3 py-2 text-sm text-slate-800 outline-none"
                 >
-                  <option value="이강민 중개사">이강민 중개사</option>
-                  <option value="이지원 상무">이지원 상무</option>
-                  <option value="김진우 소장">김진우 소장</option>
-                  <option value="박서연 과장">박서연 과장</option>
+                  <option value="유한희 중개사">유한희 중개사</option>
+                  <option value="유진옥 중개사">유진옥 중개사</option>
+                  <option value="김서하 중개사">김서하 중개사</option>
                 </select>
               </div>
             </div>
