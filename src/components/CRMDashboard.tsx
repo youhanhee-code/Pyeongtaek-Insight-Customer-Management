@@ -6,9 +6,25 @@ interface CRMDashboardProps {
   customers: Customer[];
   onExport: () => void;
   onClearAll: () => void;
+  selectedType?: string;
+  setSelectedType?: (type: string) => void;
+  selectedStatus?: string;
+  setSelectedStatus?: (status: string) => void;
+  selectedGroup?: string;
+  setSelectedGroup?: (group: string) => void;
 }
 
-export default function CRMDashboard({ customers, onExport, onClearAll }: CRMDashboardProps) {
+export default function CRMDashboard({ 
+  customers, 
+  onExport, 
+  onClearAll,
+  selectedType = '전체',
+  setSelectedType,
+  selectedStatus = '전체',
+  setSelectedStatus,
+  selectedGroup = '전체',
+  setSelectedGroup
+}: CRMDashboardProps) {
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
   const total = customers.length;
   
@@ -32,70 +48,138 @@ export default function CRMDashboard({ customers, onExport, onClearAll }: CRMDas
 
   const defaultTypes = ['매수인', '임차인', '매도인', '임대인', '관리인', '대리인', '중개사', '기타'];
 
+  const handleFilterClick = (typeVal?: string, statusVal?: string, groupVal?: string) => {
+    if (setSelectedType && typeVal !== undefined) {
+      setSelectedType(typeVal);
+    }
+    if (setSelectedStatus && statusVal !== undefined) {
+      setSelectedStatus(statusVal);
+    }
+    if (setSelectedGroup && groupVal !== undefined) {
+      setSelectedGroup(groupVal);
+    }
+
+    // Scroll to the database list with smooth animation
+    setTimeout(() => {
+      const element = document.getElementById('customer-database-section');
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 60);
+  };
+
   return (
     <div className="mb-12">
       {/* Top Welcome & KPI Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 text-left">
         
         {/* Metric 1: Total Customers */}
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition">
+        <button
+          type="button"
+          onClick={() => handleFilterClick('전체', '전체', '전체')}
+          className={`w-full text-left bg-white border rounded-3xl p-6 shadow-3xs hover:shadow-md transition duration-200 cursor-pointer transform hover:scale-[1.01] active:scale-[0.99] group focus:outline-hidden ${
+            selectedStatus === '전체' && selectedType === '전체' && selectedGroup === '전체'
+              ? 'ring-2 ring-slate-900 border-slate-900 bg-slate-50/10'
+              : 'border-slate-200'
+          }`}
+          title="클릭 시 전체 고객 검색 필터 초기화"
+        >
           <div className="flex justify-between items-center mb-4">
-            <span className="text-slate-500 font-medium text-sm">전체 관리 고객수</span>
-            <div className="w-10 h-10 rounded-2xl bg-slate-900/5 flex items-center justify-center text-slate-800">
+            <span className="text-slate-500 font-bold text-xs uppercase tracking-wider block">전체 관리 고객수</span>
+            <div className="w-10 h-10 rounded-2xl bg-slate-900/5 flex items-center justify-center text-slate-800 group-hover:bg-slate-900 group-hover:text-white transition duration-200">
               <Users className="w-5 h-5" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-4xl font-extrabold tracking-tight text-slate-900">{total}</span>
-            <span className="text-sm font-semibold text-slate-500">명</span>
+            <span className="text-sm font-bold text-slate-500">명</span>
           </div>
-          <p className="text-xs text-slate-400 mt-2">전체 등록된 거래 의뢰인 목록</p>
-        </div>
+          <div className="flex justify-between items-center mt-3 text-[10px] text-slate-400 font-semibold">
+            <span>전체 의뢰인 보기</span>
+            <span className="text-blue-600 opacity-0 group-hover:opacity-100 transition duration-150">전체 선택 ➔</span>
+          </div>
+        </button>
 
         {/* Metric 2: Active Consultings */}
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition">
+        <button
+          type="button"
+          onClick={() => handleFilterClick('전체', '상담중')}
+          className={`w-full text-left bg-white border rounded-3xl p-6 shadow-3xs hover:shadow-md transition duration-200 cursor-pointer transform hover:scale-[1.01] active:scale-[0.99] group focus:outline-hidden ${
+            selectedStatus === '상담중'
+              ? 'ring-2 ring-amber-500 border-amber-500 bg-amber-50/10'
+              : 'border-slate-200'
+          }`}
+          title="클릭 시 '상담중' 고객들을 우선 필터링"
+        >
           <div className="flex justify-between items-center mb-4">
-            <span className="text-slate-500 font-medium text-sm">상담 및 진행중</span>
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-600">
+            <span className="text-slate-500 font-bold text-xs uppercase tracking-wider block">상담 및 진행중</span>
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition duration-200">
               <RefreshCw className="w-5 h-5 animate-spin-slow" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-4xl font-extrabold tracking-tight text-slate-900">{statusStats.active}</span>
-            <span className="text-sm font-semibold text-slate-500">명</span>
+            <span className="text-sm font-bold text-slate-500">명</span>
           </div>
-          <p className="text-xs text-slate-400 mt-2">상담, 계약검토 중인 예비 거래건</p>
-        </div>
+          <div className="flex justify-between items-center mt-3 text-[10px] text-slate-400 font-semibold">
+            <span>예비 진행건 보기</span>
+            <span className="text-amber-600 opacity-0 group-hover:opacity-100 transition duration-150">상담 필터 ➔</span>
+          </div>
+        </button>
 
         {/* Metric 3: Contracts Closed */}
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition">
+        <button
+          type="button"
+          onClick={() => handleFilterClick('전체', '계약완료')}
+          className={`w-full text-left bg-white border rounded-3xl p-6 shadow-3xs hover:shadow-md transition duration-200 cursor-pointer transform hover:scale-[1.01] active:scale-[0.99] group focus:outline-hidden ${
+            selectedStatus === '계약완료'
+              ? 'ring-2 ring-emerald-500 border-emerald-500 bg-emerald-50/10'
+              : 'border-slate-200'
+          }`}
+          title="클릭 시 '계약완료' 고객들을 우선 필터링"
+        >
           <div className="flex justify-between items-center mb-4">
-            <span className="text-slate-500 font-medium text-sm">계약 성사 건수</span>
-            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+            <span className="text-slate-500 font-bold text-xs uppercase tracking-wider block">계약 성사 건수</span>
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition duration-200">
               <FileCheck className="w-5 h-5" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-4xl font-extrabold tracking-tight text-emerald-600">{statusStats.completed}</span>
-            <span className="text-sm font-semibold text-slate-500">건</span>
+            <span className="text-sm font-bold text-slate-500">건</span>
           </div>
-          <p className="text-xs text-slate-400 mt-2">안전 수수료 확보 및 계약서 작성 완료</p>
-        </div>
+          <div className="flex justify-between items-center mt-3 text-[10px] text-slate-400 font-semibold">
+            <span>수수료 확보건 보기</span>
+            <span className="text-emerald-600 opacity-0 group-hover:opacity-100 transition duration-150">완료 필터 ➔</span>
+          </div>
+        </button>
 
         {/* Metric 4: On Hold */}
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition">
+        <button
+          type="button"
+          onClick={() => handleFilterClick('전체', '보류')}
+          className={`w-full text-left bg-white border rounded-3xl p-6 shadow-3xs hover:shadow-md transition duration-200 cursor-pointer transform hover:scale-[1.01] active:scale-[0.99] group focus:outline-hidden ${
+            selectedStatus === '보류'
+              ? 'ring-2 ring-rose-500 border-rose-500 bg-rose-50/10'
+              : 'border-slate-200'
+          }`}
+          title="클릭 시 '보류' 고객들을 우선 필터링"
+        >
           <div className="flex justify-between items-center mb-4">
-            <span className="text-slate-500 font-medium text-sm">보류 고객</span>
-            <div className="w-10 h-10 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-600">
+            <span className="text-slate-500 font-bold text-xs uppercase tracking-wider block">보류 고객</span>
+            <div className="w-10 h-10 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-600 group-hover:bg-rose-500 group-hover:text-white transition duration-200">
               <Layers className="w-5 h-5" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-4xl font-extrabold tracking-tight text-slate-900">{statusStats.hold}</span>
-            <span className="text-sm font-semibold text-slate-500">명</span>
+            <span className="text-sm font-bold text-slate-500">명</span>
           </div>
-          <p className="text-xs text-slate-400 mt-2">시장 관망 상태 또는 재상담 보류 상태</p>
-        </div>
+          <div className="flex justify-between items-center mt-3 text-[10px] text-slate-400 font-semibold">
+            <span>보류 상태군 보기</span>
+            <span className="text-rose-600 opacity-0 group-hover:opacity-100 transition duration-150">보류 필터 ➔</span>
+          </div>
+        </button>
 
       </div>
 
@@ -182,22 +266,55 @@ export default function CRMDashboard({ customers, onExport, onClearAll }: CRMDas
 
       {/* Customer Type Distribution Charts Card */}
       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm mt-6">
-        <h4 className="font-bold text-slate-800 mb-4 text-base">유형별 의뢰자 분석</h4>
+        <div className="flex justify-between items-center mb-4">
+          <h4 className="font-bold text-slate-800 text-sm">🗂️ 유형별 의뢰자 분석 (클릭하여 대시보드 및 리스트 필터링)</h4>
+          {selectedType !== '전체' && (
+            <button
+              onClick={() => handleFilterClick('전체')}
+              className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline transition"
+            >
+              필터 해제 ↺
+            </button>
+          )}
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4 text-center">
           {defaultTypes.map((type) => {
             const count = typeCounts[type] || 0;
-            const percentage = total > 0 ? Math.round((count / total) * 105) : 0; // limit height ratio slightly
+            const isActive = selectedType === type;
             return (
-              <div key={type} className="bg-slate-50 rounded-2xl p-3 border border-slate-100 flex flex-col justify-between items-center transition hover:bg-slate-100/50">
-                <span className="text-slate-500 text-xs font-medium block mb-1">{type}</span>
-                <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden my-2">
+              <button
+                key={type}
+                type="button"
+                onClick={() => handleFilterClick(isActive ? '전체' : type)}
+                className={`w-full text-center rounded-2xl p-3 border flex flex-col justify-between items-center transition duration-200 cursor-pointer transform hover:scale-[1.03] active:scale-[0.97] focus:outline-hidden ${
+                  isActive
+                    ? 'ring-2 ring-slate-900 border-slate-900 bg-slate-100 shadow-3xs'
+                    : 'bg-slate-50 border-slate-100 hover:bg-slate-100/50'
+                }`}
+                title={`클릭하여 '${type}' 고객 필터링`}
+              >
+                <div className="font-semibold text-xs flex items-center gap-1">
+                  {type === '매수인' ? '👤' : 
+                   type === '임차인' ? '🏠' : 
+                   type === '매도인' ? '🏢' : 
+                   type === '임대인' ? '🔑' : 
+                   type === '관리인' ? '🛠️' : 
+                   type === '대리인' ? '📄' : 
+                   type === '중개사' ? '🤝' : '➕'} {type}
+                </div>
+                <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden my-2.5">
                   <div 
-                    className="bg-slate-900 h-full rounded-full transition-all duration-500"
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      isActive ? 'bg-blue-600' : 'bg-slate-900'
+                    }`}
                     style={{ width: `${total ? (count / total) * 100 : 0}%` }}
                   ></div>
                 </div>
-                <div className="font-bold text-slate-900 text-lg mt-1">{count}<span className="text-xs text-slate-500 font-normal">명</span></div>
-              </div>
+                <div className="font-extrabold text-[#0F172A] text-xl mt-0.5">
+                  {count}
+                  <span className="text-xs text-slate-400 font-bold ml-0.5">명</span>
+                </div>
+              </button>
             );
           })}
         </div>

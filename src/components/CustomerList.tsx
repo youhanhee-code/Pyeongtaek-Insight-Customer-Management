@@ -16,6 +16,12 @@ interface CustomerListProps {
   onDeleteFile: (customerId: string, fileIdx: number) => void;
   currentUser: ManagerUser;
   onUpdateCustomerShare: (id: string, isShared: boolean, sharedManagerIds: string[]) => void;
+  selectedType?: string;
+  setSelectedType?: (type: string) => void;
+  selectedGroup?: string;
+  setSelectedGroup?: (group: string) => void;
+  selectedStatus?: string;
+  setSelectedStatus?: (status: string) => void;
 }
 
 const CUSTOMER_TYPES = ['전체', '매수인', '임차인', '매도인', '임대인', '관리인', '대리인', '중개사', '기타'];
@@ -31,13 +37,29 @@ export default function CustomerList({
   onAddFile,
   onDeleteFile,
   currentUser,
-  onUpdateCustomerShare
+  onUpdateCustomerShare,
+  selectedType: propSelectedType,
+  setSelectedType: propSetSelectedType,
+  selectedGroup: propSelectedGroup,
+  setSelectedGroup: propSetSelectedGroup,
+  selectedStatus: propSelectedStatus,
+  setSelectedStatus: propSetSelectedStatus,
 }: CustomerListProps) {
   // Filters State
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedType, setSelectedType] = useState('전체');
-  const [selectedGroup, setSelectedGroup] = useState('전체');
-  const [selectedStatus, setSelectedStatus] = useState('전체');
+  const [internalSelectedType, setInternalSelectedType] = useState('전체');
+  const [internalSelectedGroup, setInternalSelectedGroup] = useState('전체');
+  const [internalSelectedStatus, setInternalSelectedStatus] = useState('전체');
+
+  const selectedType = propSelectedType !== undefined ? propSelectedType : internalSelectedType;
+  const setSelectedType = propSetSelectedType !== undefined ? propSetSelectedType : setInternalSelectedType;
+
+  const selectedGroup = propSelectedGroup !== undefined ? propSelectedGroup : internalSelectedGroup;
+  const setSelectedGroup = propSetSelectedGroup !== undefined ? propSetSelectedGroup : setInternalSelectedGroup;
+
+  const selectedStatus = propSelectedStatus !== undefined ? propSelectedStatus : internalSelectedStatus;
+  const setSelectedStatus = propSetSelectedStatus !== undefined ? propSetSelectedStatus : setInternalSelectedStatus;
+
   const [sharingMenuOpenId, setSharingMenuOpenId] = useState<string | null>(null);
 
   // Expanded cards state

@@ -45,6 +45,11 @@ export default function App() {
   const [groups, setGroups] = useState<string[]>([]);
   const [statuses, setStatuses] = useState<string[]>([]);
 
+  // Synchronized Interactive Dashboard Filters
+  const [filterType, setFilterType] = useState('전체');
+  const [filterStatus, setFilterStatus] = useState('전체');
+  const [filterGroup, setFilterGroup] = useState('전체');
+
   // Navigation Tabs: 'live-crm' (Interactive App), 'guide' (Original Template Content)
   const [activeTab, setActiveTab] = useState<'live-crm' | 'guide'>('live-crm');
 
@@ -357,7 +362,17 @@ export default function App() {
           <div className="py-12 px-4 sm:px-6 max-w-7xl mx-auto space-y-8">
             
             {/* Active Analytics counters header */}
-            <CRMDashboard customers={visibleCustomers} onExport={handleExportCSV} onClearAll={handleClearAllCustomers} />
+            <CRMDashboard 
+              customers={visibleCustomers} 
+              onExport={handleExportCSV} 
+              onClearAll={handleClearAllCustomers} 
+              selectedType={filterType}
+              setSelectedType={setFilterType}
+              selectedStatus={filterStatus}
+              setSelectedStatus={setFilterStatus}
+              selectedGroup={filterGroup}
+              setSelectedGroup={setFilterGroup}
+            />
 
             {/* Split view: Register customer form on left/right, customer list with search on other */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
@@ -400,7 +415,7 @@ export default function App() {
             </div>
 
             {/* Full Width bottom widget: Customer Filtering and Lookup Board */}
-            <div className="space-y-4 pt-4">
+            <div className="space-y-4 pt-4" id="customer-database-section">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-6 bg-slate-900 rounded-sm"></span>
                 <h3 className="text-xl font-bold text-slate-900">🗃️ 전체 고객 데이터베이스 조회</h3>
@@ -417,6 +432,12 @@ export default function App() {
                 onDeleteFile={handleDeleteFile}
                 currentUser={currentUser}
                 onUpdateCustomerShare={handleUpdateCustomerShare}
+                selectedType={filterType}
+                setSelectedType={setFilterType}
+                selectedStatus={filterStatus}
+                setSelectedStatus={setFilterStatus}
+                selectedGroup={filterGroup}
+                setSelectedGroup={setFilterGroup}
               />
             </div>
 

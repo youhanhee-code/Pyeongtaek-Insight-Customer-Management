@@ -3,6 +3,7 @@ import { Customer, ManagerUser } from '../types';
 import { Sparkles, Phone, User, Landmark, HelpCircle, FilePlus, X, HelpCircle as HelpIcon, AlertCircle, FileSpreadsheet, Download, Upload, CheckCircle } from 'lucide-react';
 import { getManagers } from '../utils/auth';
 import * as XLSX from 'xlsx';
+import { storeFileBlob, deleteFileBlob } from '../utils/fileStorage';
 
 interface CustomerFormProps {
   onSave: (customer: Customer | Customer[]) => void;
@@ -26,6 +27,9 @@ const CUSTOMER_TYPES = [
 const PRESET_DOCUMENTS = ['계약서', '등기부등본', '신분증 사본', '상담 자료', '기타 문서'];
 
 export default function CustomerForm({ onSave, existingCustomers, groups, statuses, currentUser }: CustomerFormProps) {
+  // Persistent Form ID to correlate file uploads before submission
+  const [formId, setFormId] = useState(() => `cust-${Date.now()}`);
+
   // Form State
   const [name, setName] = useState('');
   const [gender, setGender] = useState<'남자' | '여자'>('남자');
@@ -46,6 +50,7 @@ export default function CustomerForm({ onSave, existingCustomers, groups, status
   const [isDuplicate, setIsDuplicate] = useState(false);
   const [duplicateName, setDuplicateName] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+  const [activeUploadType, setActiveUploadType] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   // New Registration Mode Selector and Excel parameters
@@ -403,32 +408,65 @@ export default function CustomerForm({ onSave, existingCustomers, groups, status
     setPropertyDetails('');
   }, [type]);
 
-  // File Upload Handlers (Simulation for preview ease, allowing custom input type uploads as well)
-  const handleAddFilePreset = (fileName: string) => {
+  // File Upload Handlers with real IndexedDB storing support
+  const handleAddFilePreset = (docType: string) => {
     if (uploadedFiles.length >= 5) {
       alert('파일은 최대 5개까지 업로드 가능합니다.');
       return;
     }
-    const suffix = Math.floor(Math.random() * 1000);
-    const mockFullName = `${fileName}_첨부_${suffix}.pdf`;
-    setUploadedFiles([...uploadedFiles, mockFullName]);
+    setActiveUploadType(docType);
+    setTimeout(() => {
+      document.getElementById('form-preset-file-uploader')?.click();
+    }, 15);
   };
 
-  const handleFileUploadInput = (e: ChangeEvent<HTMLInputElement>) => {
+  const handlePresetFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && activeUploadType) {
+      const finalName = `[${activeUploadType}] ${file.name}`;
+      try {
+        await storeFileBlob(formId, finalName, file);
+        setUploadedFiles(prev => [...prev, finalName]);
+      } catch (err) {
+        console.error('Error storing preset file blob:', err);
+        setUploadedFiles(prev => [...prev, finalName]);
+      }
+    }
+    e.target.value = '';
+    setActiveUploadType(null);
+  };
+
+  const handleFileUploadInput = async (e: ChangeEvent<HTMLInputElement>) => {
     if (uploadedFiles.length >= 5) {
       alert('파일은 최대 5개까지 업로드 가능합니다.');
       return;
     }
-    const files = e.target.files;
-    if (files && files[0]) {
-      setUploadedFiles([...uploadedFiles, files[0].name]);
+    const file = e.target.files?.[0];
+    if (file) {
+      const finalName = file.name;
+      try {
+        await storeFileBlob(formId, finalName, file);
+        setUploadedFiles(prev => [...prev, finalName]);
+      } catch (err) {
+        console.error('Error storing custom file blob:', err);
+        setUploadedFiles(prev => [...prev, finalName]);
+      }
     }
+    e.target.value = '';
   };
 
-  const deleteFile = (index: number) => {
-    setUploadedFiles([
-      ...uploadedFiles.slice(0, index),
-      ...uploadedFiles.slice(index + 1)
+  const deleteFile = async (index: number) => {
+    const fileName = uploadedFiles[index];
+    if (fileName) {
+      try {
+        await deleteFileBlob(formId, fileName);
+      } catch (err) {
+        console.error('Error deleting file blob in form:', err);
+      }
+    }
+    setUploadedFiles(prev => [
+      ...prev.slice(0, index),
+      ...prev.slice(index + 1)
     ]);
   };
 
@@ -444,7 +482,7 @@ export default function CustomerForm({ onSave, existingCustomers, groups, status
     }
 
     const newCustomer: Customer = {
-      id: `cust-${Date.now()}`,
+      id: formId,
       name,
       phone,
       gender,
@@ -465,6 +503,7 @@ export default function CustomerForm({ onSave, existingCustomers, groups, status
     onSave(newCustomer);
 
     // Reset Form
+    setFormId(`cust-${Date.now()}`);
     setName('');
     setPhone('');
     setMemo('');
@@ -956,9 +995,10 @@ export default function CustomerForm({ onSave, existingCustomers, groups, status
                   key={docType}
                   type="button"
                   onClick={() => handleAddFilePreset(docType)}
-                  className="bg-slate-50 border border-slate-200 hover:border-slate-400 hover:bg-slate-100/70 p-3 rounded-xl text-center text-xs font-semibold text-slate-700 transition cursor-pointer"
+                  className="bg-slate-50 border border-slate-200 hover:border-blue-500 hover:bg-blue-50/20 p-3 rounded-xl text-center text-xs font-semibold text-slate-700 hover:text-blue-600 transition cursor-pointer"
+                  title={`${docType} 첨부하기 (파일 선택)`}
                 >
-                  📁 {docType} 추가
+                  📎 {docType} 첨부
                 </button>
               ))}
             </div>
@@ -1022,6 +1062,14 @@ export default function CustomerForm({ onSave, existingCustomers, groups, status
           </button>
         </form>
       )}
+
+      {/* Hidden File Input for Preset Uploads */}
+      <input
+        id="form-preset-file-uploader"
+        type="file"
+        onChange={handlePresetFileChange}
+        className="hidden"
+      />
     </div>
   );
 }
