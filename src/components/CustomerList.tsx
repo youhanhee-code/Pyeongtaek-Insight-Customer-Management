@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import React, { useState, ChangeEvent } from 'react';
 import { Customer, CustomerNote, ManagerUser } from '../types';
-import { Search, Phone, User, Calendar, Folder, Plus, Trash2, ChevronDown, ChevronUp, FileText, CheckCircle2, UserCheck, PlusCircle, Handshake } from 'lucide-react';
+import { Search, Phone, User, Calendar, Folder, Plus, Trash2, ChevronDown, ChevronUp, FileText, CheckCircle2, UserCheck, PlusCircle, Handshake, Eye, Download, X } from 'lucide-react';
 import { getManagers } from '../utils/auth';
+import { storeFileBlob, getFileBlob } from '../utils/fileStorage';
 
 interface CustomerListProps {
   customers: Customer[];
@@ -10,7 +11,9 @@ interface CustomerListProps {
   onDelete: (id: string) => void;
   onUpdateStatus: (id: string, newStatus: string) => void;
   onAddNote: (id: string, content: string) => void;
+  onDeleteNote: (customerId: string, noteId: string) => void;
   onAddFile: (id: string, fileName: string) => void;
+  onDeleteFile: (customerId: string, fileIdx: number) => void;
   currentUser: ManagerUser;
   onUpdateCustomerShare: (id: string, isShared: boolean, sharedManagerIds: string[]) => void;
 }
@@ -24,7 +27,9 @@ export default function CustomerList({
   onDelete,
   onUpdateStatus,
   onAddNote,
+  onDeleteNote,
   onAddFile,
+  onDeleteFile,
   currentUser,
   onUpdateCustomerShare
 }: CustomerListProps) {
@@ -38,6 +43,111 @@ export default function CustomerList({
   // Expanded cards state
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
   const [newNotes, setNewNotes] = useState<Record<string, string>>({});
+  
+  // Track active file slot being uploaded/attached
+  const [activeUpload, setActiveUpload] = useState<{ customerId: string; fileType: string } | null>(null);
+
+  // File preview state
+  const [previewFile, setPreviewFile] = useState<{
+    customerId: string;
+    fileName: string;
+    srcUrl?: string;
+    fileType?: string;
+    fileSize?: number;
+    error?: boolean;
+    loading?: boolean;
+    blob?: Blob;
+  } | null>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && activeUpload) {
+      const finalName = `[${activeUpload.fileType}] ${file.name}`;
+      try {
+        await storeFileBlob(activeUpload.customerId, finalName, file);
+        onAddFile(activeUpload.customerId, finalName);
+      } catch (err) {
+        console.error('Error saving file blob:', err);
+        // Fallback to updating state directly
+        onAddFile(activeUpload.customerId, finalName);
+      }
+    }
+    // Clean up input value
+    e.target.value = '';
+    setActiveUpload(null);
+  };
+
+  const handlePreviewFileClick = async (customerId: string, fileName: string) => {
+    setPreviewFile({
+      customerId,
+      fileName,
+      loading: true
+    });
+
+    try {
+      const fileData = await getFileBlob(customerId, fileName);
+      if (fileData && fileData.blob) {
+        const srcUrl = URL.createObjectURL(fileData.blob);
+        setPreviewFile({
+          customerId,
+          fileName,
+          srcUrl,
+          fileType: fileData.type || 'application/octet-stream',
+          fileSize: fileData.size,
+          blob: fileData.blob,
+          loading: false
+        });
+      } else {
+        // Fallback or legacy file names
+        setPreviewFile({
+          customerId,
+          fileName,
+          error: true,
+          loading: false
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load file blob:', err);
+      setPreviewFile({
+        customerId,
+        fileName,
+        error: true,
+        loading: false
+      });
+    }
+  };
+
+  const handleClosePreview = () => {
+    if (previewFile?.srcUrl) {
+      URL.revokeObjectURL(previewFile.srcUrl);
+    }
+    setPreviewFile(null);
+  };
+
+  const handleDownloadFile = () => {
+    if (!previewFile) return;
+    
+    let downloadUrl = previewFile.srcUrl;
+    let fallbackCreated = false;
+
+    if (!downloadUrl) {
+      // Create simplified mockup file if blob is not persistently available (e.g., initial seed test data)
+      const mockBlob = new Blob([`이 파일은 모의용 부동산 CRM 문서 첨부파일 시드입니다.\n\n파일명: ${previewFile.fileName}`], { type: 'text/plain' });
+      downloadUrl = URL.createObjectURL(mockBlob);
+      fallbackCreated = true;
+    }
+
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = previewFile.fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    if (fallbackCreated) {
+      URL.revokeObjectURL(downloadUrl);
+    }
+  };
 
   const toggleExpand = (id: string) => {
     setExpandedIds(prev => ({ ...prev, [id]: !prev[id] }));
@@ -52,7 +162,10 @@ export default function CustomerList({
   };
 
   const handleQuickAddFile = (customerId: string, fileType: string) => {
-    onAddFile(customerId, fileType);
+    setActiveUpload({ customerId, fileType });
+    setTimeout(() => {
+      document.getElementById('global-file-uploader')?.click();
+    }, 10);
   };
 
   // Filter customers logic
@@ -463,14 +576,27 @@ export default function CustomerList({
                           </div>
                         ) : (
                           customer.notes.map((note) => (
-                            <div key={note.id} className="bg-white rounded-2xl p-4 border shadow-3xs flex items-start gap-3">
-                              <div className="w-2 h-2 mt-2 rounded-full bg-[#0F172A] shrink-0"></div>
-                              <div className="flex-1">
-                                <p className="text-slate-700 text-sm leading-relaxed">{note.content}</p>
-                                <span className="text-[10px] text-slate-400 font-medium block mt-1.5">
-                                  ✍ {new Date(note.createdAt).toLocaleString()}
-                                </span>
+                            <div key={note.id} className="bg-white rounded-2xl p-4 border shadow-3xs flex items-start justify-between gap-3 group/note">
+                              <div className="flex items-start gap-3 flex-1">
+                                <div className="w-2 h-2 mt-2 rounded-full bg-[#0F172A] shrink-0"></div>
+                                <div className="flex-1">
+                                  <p className="text-slate-700 text-sm leading-relaxed">{note.content}</p>
+                                  <span className="text-[10px] text-slate-400 font-medium block mt-1.5">
+                                    ✍ {new Date(note.createdAt).toLocaleString()}
+                                  </span>
+                                </div>
                               </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteNote(customer.id, note.id);
+                                }}
+                                className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-xl transition duration-150 self-start shrink-0 cursor-pointer"
+                                title="상담 일지 삭제"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           ))
                         )}
@@ -502,16 +628,18 @@ export default function CustomerList({
                           </h6>
                         </div>
 
-                        {/* Drop-to-add simulated preset documents directly inside user card list */}
+                        {/* File uploads triggers */}
                         {customer.files.length < 5 && (
                           <div className="flex flex-wrap gap-1.5">
                             {['계약서', '등기부등본', '신분증 사본', '상담 자료'].map((fType) => (
                               <button
                                 key={fType}
+                                type="button"
                                 onClick={() => handleQuickAddFile(customer.id, fType)}
-                                className="bg-white hover:bg-slate-100 border text-[10px] font-semibold px-2 py-1 rounded text-slate-600 transition"
+                                className="bg-white hover:bg-slate-100 border text-[10px] font-semibold px-2 py-1 rounded text-slate-600 transition cursor-pointer"
+                                title={`${fType} 첨부파일 선택`}
                               >
-                                ➕ {fType}
+                                📎 {fType} 첨부
                               </button>
                             ))}
                           </div>
@@ -524,9 +652,32 @@ export default function CustomerList({
                       ) : (
                         <div className="flex flex-wrap gap-2 mt-3">
                           {customer.files.map((file, fIdx) => (
-                            <div key={fIdx} className="bg-white border text-[11px] font-semibold px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-slate-800">
-                              <span className="text-blue-500">📄</span>
-                              <span>{file}</span>
+                            <div 
+                              key={fIdx} 
+                              className="bg-white border hover:border-blue-400 text-[11px] font-semibold rounded-lg flex items-center shadow-3xs transition duration-150 group/file overflow-hidden"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => handlePreviewFileClick(customer.id, file)}
+                                className="flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 text-slate-700 hover:text-blue-600 transition cursor-pointer text-left focus:outline-hidden"
+                                title="클릭하여 파일 미리보기 / 다운로드"
+                              >
+                                <span className="text-blue-500 scale-100 group-hover/file:scale-110 transition duration-150 shrink-0">📄</span>
+                                <span className="truncate max-w-[120px] sm:max-w-[200px] font-medium leading-none">{file}</span>
+                                <span className="text-[9px] text-slate-400 font-normal ml-0.5 group-hover/file:text-blue-500 transition duration-150">(보기)</span>
+                              </button>
+                              <div className="h-4 w-px bg-slate-200"></div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteFile(customer.id, fIdx);
+                                }}
+                                className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1 mx-1.5 rounded transition cursor-pointer font-bold leading-none text-xs shrink-0"
+                                title="파일 제거"
+                              >
+                                ✕
+                              </button>
                             </div>
                           ))}
                         </div>
@@ -540,6 +691,151 @@ export default function CustomerList({
           })
         )}
       </div>
+
+      {/* Global Hidden File Input Uploader */}
+      <input
+        id="global-file-uploader"
+        type="file"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
+      {/* Dynamic File Preview Modal */}
+      {previewFile && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-2xs z-50 flex items-center justify-center p-4 animate-fade-in" onClick={handleClosePreview}>
+          <div 
+            className="bg-slate-50 border border-slate-200 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="px-6 py-4 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="text-xl shrink-0">📄</span>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-slate-900 text-sm truncate" title={previewFile.fileName}>
+                    {previewFile.fileName}
+                  </h3>
+                  {previewFile.fileSize && (
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      {(previewFile.fileSize / 1024).toFixed(1)} KB • {previewFile.fileType}
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleDownloadFile}
+                  className="p-2 text-slate-600 hover:text-blue-600 hover:bg-slate-50 rounded-xl transition cursor-pointer"
+                  title="파일 다운로드"
+                >
+                  <Download className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClosePreview}
+                  className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                  title="닫기"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content Preview Area */}
+            <div className="p-6 flex-1 overflow-auto flex flex-col items-center justify-center bg-slate-100/30">
+              {previewFile.loading ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-xs text-slate-500 font-semibold mt-4">파일 불러오는 중...</span>
+                </div>
+              ) : previewFile.error ? (
+                <div className="text-center py-10 max-w-sm">
+                  <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-200">
+                    <FileText className="w-10 h-10 text-slate-400" />
+                  </div>
+                  <h4 className="font-bold text-slate-800 text-sm mb-2">로컬 전용 가상 파일 정보</h4>
+                  <p className="text-xs text-slate-450 leading-relaxed mb-6">
+                    이 파일은 데모용 시드 데이터이거나 다른 기기에서 업로드된 파일입니다. 클릭하여 원본과 동일한 데모 문서를 다운로드하여 테스트할 수 있습니다.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleDownloadFile}
+                    className="bg-[#0F172A] hover:bg-slate-900 text-white font-semibold text-xs py-2 px-4 rounded-xl shadow-3xs transition cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    <Download className="w-3.5 h-3.5" /> 샘플 실물 파일 다운로드
+                  </button>
+                </div>
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center">
+                  {/* Categorize by image or pdf or other */}
+                  {previewFile.fileType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(previewFile.fileName) ? (
+                    <div className="max-w-full max-h-[55vh] rounded-2xl overflow-hidden shadow-xs border border-slate-200 bg-white p-2">
+                      <img 
+                        src={previewFile.srcUrl} 
+                        alt={previewFile.fileName} 
+                        className="max-w-full max-h-[50vh] object-contain mx-auto"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                  ) : previewFile.fileType === 'application/pdf' || /\.pdf$/i.test(previewFile.fileName) ? (
+                    <div className="w-full h-[55vh] flex flex-col items-center gap-3">
+                      <iframe 
+                        src={previewFile.srcUrl} 
+                        className="w-full h-full bg-white rounded-2xl border shadow-xs"
+                        title="PDF Viewer"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => window.open(previewFile.srcUrl, '_blank')}
+                        className="text-xs text-blue-600 hover:text-blue-800 hover:underline font-bold inline-flex items-center gap-1 cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5" /> 새 창에서 PDF 원본 전체 보기
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-center py-10">
+                      <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center mx-auto mb-4 border shadow-3xs text-blue-500">
+                        <FileText className="w-10 h-10" />
+                      </div>
+                      <h4 className="font-bold text-slate-800 text-sm mb-1">{previewFile.fileName}</h4>
+                      <p className="text-xs text-slate-400 mb-6">전용 뷰어가 이 파일 형식을 직접 렌더링하지 않으나 즉시 다운로드 가능합니다.</p>
+                      <button
+                        type="button"
+                        onClick={handleDownloadFile}
+                        className="bg-[#0F172A] hover:bg-slate-900 text-white font-semibold text-xs py-2.5 px-5 rounded-2xl shadow-sm transition cursor-pointer inline-flex items-center gap-2"
+                      >
+                        <Download className="w-4 h-4" /> 파일 다운로드
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex justify-end gap-2.5 shrink-0">
+              <button
+                type="button"
+                onClick={handleClosePreview}
+                className="bg-white hover:bg-slate-150 border border-slate-200 text-slate-700 font-semibold text-xs px-4 py-2 rounded-2xl transition cursor-pointer"
+              >
+                닫기
+              </button>
+              {!previewFile.loading && (
+                <button
+                  type="button"
+                  onClick={handleDownloadFile}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-4 py-2 rounded-2xl shadow-3xs transition cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  <Download className="w-3.5 h-3.5" /> 다운로드 받기
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

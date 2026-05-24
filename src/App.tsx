@@ -9,6 +9,7 @@ import {
   saveStatuses
 } from './utils/storage';
 import { getCurrentUser, logoutUser, getManagers } from './utils/auth';
+import { deleteFileBlob } from './utils/fileStorage';
 import CRMDashboard from './components/CRMDashboard';
 import CustomerForm from './components/CustomerForm';
 import CustomerList from './components/CustomerList';
@@ -142,6 +143,17 @@ export default function App() {
     saveCustomers(updated);
   };
 
+  const handleDeleteNote = (customerId: string, noteId: string) => {
+    const updated = customers.map((c) => {
+      if (c.id === customerId) {
+        return { ...c, notes: c.notes.filter((n) => n.id !== noteId) };
+      }
+      return c;
+    });
+    setCustomers(updated);
+    saveCustomers(updated);
+  };
+
   const handleAddFile = (id: string, fileName: string) => {
     const updated = customers.map((c) => {
       if (c.id === id) {
@@ -149,9 +161,25 @@ export default function App() {
           alert('파일은 한 고객당 최대 5개까지만 등록할 수 있습니다.');
           return c;
         }
-        const suffix = Math.floor(Math.random() * 900) + 100;
-        const finalName = `${fileName}_${suffix}.pdf`;
-        return { ...c, files: [...c.files, finalName] };
+        return { ...c, files: [...c.files, fileName] };
+      }
+      return c;
+    });
+    setCustomers(updated);
+    saveCustomers(updated);
+  };
+
+  const handleDeleteFile = (id: string, fileIdx: number) => {
+    // Find customer and get the exact file pattern to clean up DB
+    const customer = customers.find(c => c.id === id);
+    if (customer && customer.files[fileIdx]) {
+      const fileName = customer.files[fileIdx];
+      deleteFileBlob(id, fileName).catch(err => console.error('Error deleting file: ', err));
+    }
+
+    const updated = customers.map((c) => {
+      if (c.id === id) {
+        return { ...c, files: c.files.filter((_, idx) => idx !== fileIdx) };
       }
       return c;
     });
@@ -384,7 +412,9 @@ export default function App() {
                 onDelete={handleDeleteCustomer}
                 onUpdateStatus={handleUpdateStatus}
                 onAddNote={handleAddNote}
+                onDeleteNote={handleDeleteNote}
                 onAddFile={handleAddFile}
+                onDeleteFile={handleDeleteFile}
                 currentUser={currentUser}
                 onUpdateCustomerShare={handleUpdateCustomerShare}
               />
