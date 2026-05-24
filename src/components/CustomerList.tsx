@@ -275,7 +275,37 @@ export default function CustomerList({
                                 </label>
 
                                 <div className="pt-2 border-t border-slate-100/60">
-                                  <span className="text-[10px] font-extrabold text-slate-400 block px-1 mb-1.5">🤝 특정 중개사 지정 선택</span>
+                                  <div className="flex items-center justify-between px-1 mb-1.5">
+                                    <span className="text-[10px] font-extrabold text-slate-400">🤝 특정 중개사 지정 선택</span>
+                                    {getManagers().filter(m => m.role !== 'admin' && m.isApproved).length > 0 && !customer.isShared && (
+                                      <div className="flex gap-1.5 text-[9px] font-bold">
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            const allIds = getManagers()
+                                              .filter(m => m.role !== 'admin' && m.isApproved)
+                                              .map(m => m.id);
+                                            onUpdateCustomerShare(customer.id, !!customer.isShared, allIds);
+                                          }}
+                                          className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer bg-blue-50/80 px-1 py-0.5 rounded transition"
+                                        >
+                                          전체 선택
+                                        </button>
+                                        <span className="text-slate-300">|</span>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            onUpdateCustomerShare(customer.id, !!customer.isShared, []);
+                                          }}
+                                          className="text-slate-500 hover:text-slate-700 hover:underline cursor-pointer bg-slate-100 px-1 py-0.5 rounded transition"
+                                        >
+                                          전체 해제
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
                                   {getManagers().filter(m => m.role !== 'admin' && m.isApproved).length === 0 ? (
                                     <span className="text-[10px] text-slate-400 italic block px-1">승인된 중개사가 없습니다.</span>
                                   ) : (

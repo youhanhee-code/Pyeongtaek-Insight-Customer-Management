@@ -8,7 +8,7 @@ import {
   getStatuses,
   saveStatuses
 } from './utils/storage';
-import { getCurrentUser, logoutUser } from './utils/auth';
+import { getCurrentUser, logoutUser, getManagers } from './utils/auth';
 import CRMDashboard from './components/CRMDashboard';
 import CustomerForm from './components/CustomerForm';
 import CustomerList from './components/CustomerList';
@@ -62,12 +62,29 @@ export default function App() {
 
   // Save updates to storage and synchronize state
   const handleSaveCustomer = (newCustomerOrList: Customer | Customer[]) => {
+    // Get all approved managers who have "sharesWithAdmin: true" (with concurrent sharing function enabled)
+    const activeSharingManagers = getManagers().filter(m => m.isApproved && m.role !== 'admin' && m.sharesWithAdmin === true);
+    const sharingIds = activeSharingManagers.map(m => m.id);
+
     setCustomers((prev) => {
       let updated: Customer[];
+
+      const applySharingSettings = (c: Customer): Customer => {
+        const currentShared = c.sharedManagerIds || [];
+        // Simultaneously share with managers who have concurrent sharing turned ON
+        const mergedShared = Array.from(new Set([...currentShared, ...sharingIds]));
+        return {
+          ...c,
+          sharedManagerIds: mergedShared
+        };
+      };
+
       if (Array.isArray(newCustomerOrList)) {
-        updated = [...newCustomerOrList, ...prev];
+        const processed = newCustomerOrList.map(applySharingSettings);
+        updated = [...processed, ...prev];
       } else {
-        updated = [newCustomerOrList, ...prev];
+        const processed = applySharingSettings(newCustomerOrList);
+        updated = [processed, ...prev];
       }
       saveCustomers(updated);
       return updated;
